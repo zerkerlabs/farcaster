@@ -1,0 +1,74 @@
+openapi: 3.0.3
+info:
+  title: x402 wire contract
+  version: "1.0.0"
+  description: >-
+    Canonical x402 wire types shared by the Farcaster gateway (verify + settle
+    client) and the facilitator (settle server), and the source of truth for
+    generated SDKs. `exact`-scheme payloads carry an EIP-3009
+    transferWithAuthorization. All 256-bit amounts and validity bounds are
+    transported as decimal/hex STRINGS (they do not fit a JSON number safely);
+    parsing/validation of those strings lives in the consuming service.
+paths: {}
+components:
+  schemas:
+    Authorization:
+      description: EIP-3009 transferWithAuthorization arguments the caller signed.
+      type: object
+      required: [from, to, value, validAfter, validBefore, nonce]
+      properties:
+        from: { type: string, description: payer address (hex) }
+        to: { type: string, description: recipient address (hex) }
+        value: { type: string, description: amount, decimal string (256-bit) }
+        validAfter: { type: string, description: unix seconds, decimal string }
+        validBefore: { type: string, description: unix seconds, decimal string }
+        nonce: { type: string, description: authorization nonce (hex) }
+    PaymentPayload:
+      description: The `exact`-scheme payload — signature over the authorization.
+      type: object
+      required: [signature, authorization]
+      properties:
+        signature: { type: string }
+        authorization: { $ref: '#/components/schemas/Authorization' }
+    Payment:
+      description: The decoded X-PAYMENT header for the `exact` scheme.
+      type: object
+      required: [x402Version, scheme, network, payload]
+      properties:
+        x402Version: { type: integer }
+        scheme: { type: string }
+        network: { type: string }
+        payload: { $ref: '#/components/schemas/PaymentPayload' }
+    PaymentRequirements:
+      description: One entry of a 402 challenge's `accepts` array.
+      type: object
+      required: [scheme, network, maxAmountRequired, asset, payTo, resource, maxTimeoutSeconds]
+      properties:
+        scheme: { type: string }
+        network: { type: string }
+        maxAmountRequired: { type: string, description: decimal string (256-bit) }
+        asset: { type: string, description: token contract address (hex) }
+        payTo: { type: string }
+        resource: { type: string }
+        maxTimeoutSeconds: { type: integer }
+    SettleRequest:
+      description: POST /settle request body — verified payment handed to the facilitator.
+      type: object
+      required: [x402Version, paymentPayload, paymentRequirements]
+      properties:
+        x402Version: { type: integer }
+        paymentPayload: { $ref: '#/components/schemas/Payment' }
+        paymentRequirements: { $ref: '#/components/schemas/PaymentRequirements' }
+    SettleResponse:
+      description: >-
+        POST /settle response body. facilitatorFee is an optional extension a
+        fee-recovering facilitator may report; absent on a self-hosted one.
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
+        errorReason: { type: string, x-go-type-skip-optional-pointer: true }
+        transaction: { type: string, x-go-type-skip-optional-pointer: true }
+        network: { type: string, x-go-type-skip-optional-pointer: true }
+        payer: { type: string, x-go-type-skip-optional-pointer: true }
+        facilitatorFee: { type: string, x-go-type-skip-optional-pointer: true }

@@ -1,0 +1,41 @@
+# CI — the merge gate for the public Farcaster repo.
+#
+# Runs each Go module's own `make check` (tidy-check, fmt-check, vet, lint,
+# race-tested tests) as an independent job. This mirrors exactly what
+# contributors run locally with `make check`. No secrets are used.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [gateway, x402types, facilitator, sdk/go]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: '**/go.sum'
+
+      - name: Install pinned dev tools (gofumpt, golangci-lint)
+        run: make tools
+
+      - name: make check
+        run: make -C ${{ matrix.module }} check

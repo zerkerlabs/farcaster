@@ -1,0 +1,27 @@
+# Binaries
+bin/
+*.exe
+*.test
+*.out
+# Compiled module binaries (e.g. from `go build .` in a module root)
+/facilitator/facilitator
+/gateway/farcaster
+
+# Go
+/vendor/
+# go.work IS committed — it defines the monorepo workspace (ADR-0010).
+go.work.sum
+
+# Coverage
+coverage.txt
+coverage.html
+
+# Env / secrets — never commit these
+.env
+.env.*
+*.local
+
+# Editor / OS cruft
+.DS_Store
+.idea/
+*.swp
