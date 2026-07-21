@@ -1,0 +1,112 @@
+# x402 wire-contract API reference — RENDERING WRAPPER.
+#
+# The canonical contract, ../../../x402types/openapi.yaml, is a schema-only
+# document (paths: {}) because the x402 wire contract is a set of transported
+# TYPES, not HTTP endpoints of its own. starlight-openapi only renders
+# *operations*, so it renders nothing from a schema-only document.
+#
+# This wrapper adds the thin operation envelope — the two HTTP messages of the
+# x402 exchange plus the gateway→facilitator settle handoff — and pulls EVERY
+# field via `$ref` back to the canonical schemas. No schema is hand-copied
+# here: change a field in x402types/openapi.yaml and this reference re-renders
+# with it, no edit to this file. The canonical file
+# stays the single source of truth the Go types and the TS SDK also generate
+# from. Wiring & base path live in ../../astro.config.mjs.
+openapi: 3.0.3
+info:
+  title: x402 wire contract
+  version: "1.0.0"
+  description: >-
+    The x402 payment exchange, rendered directly from the canonical
+    [`x402types/openapi.yaml`](https://github.com/zerkerlabs/farcaster/blob/main/x402types/openapi.yaml)
+    — the same schema the gateway (verify + settle client), the facilitator
+    (settle server), and the generated SDKs all build from. Every type below is
+    referenced from that file, never copied, so this reference can never
+    silently diverge from the contract. All 256-bit amounts and validity bounds
+    travel as decimal/hex **strings** (they do not fit a JSON number safely);
+    parsing and validation of those strings live in the consuming service.
+tags:
+  - name: The x402 exchange
+    description: >-
+      An unpaid request to a priced route earns a `402` challenge; the caller
+      signs an EIP-3009 authorization and retries with an `X-PAYMENT` header.
+  - name: Settlement
+    description: >-
+      Once a facilitator is configured, the gateway hands the verified payment
+      to it for on-chain settlement.
+paths:
+  /{resource}:
+    parameters:
+      - name: resource
+        in: path
+        required: true
+        description: Any priced route on the gateway (e.g. an agent proxy path).
+        schema:
+          type: string
+    get:
+      tags: [The x402 exchange]
+      operationId: x402Exchange
+      summary: Request a priced resource
+      description: >-
+        The first, unpaid call to a priced route is answered with `402 Payment
+        Required` and a challenge listing what would satisfy it (each entry a
+        `PaymentRequirements`). The caller signs an EIP-3009
+        `transferWithAuthorization` and retries the same request with an
+        `X-PAYMENT` header — base64-encoded JSON of the decoded `Payment` shape
+        (see [Settlement](#tag/settlement) for that shape fully expanded). A
+        valid payment yields the resource; an invalid one is challenged again.
+      parameters:
+        - name: X-PAYMENT
+          in: header
+          required: false
+          description: >-
+            base64(JSON) of a decoded `Payment` — `x402Version`, `scheme`
+            (v1: `exact`), `network` (v1: `base`), and the signed `payload`.
+            Absent on the first request; present on the paid retry.
+          schema:
+            type: string
+      responses:
+        "402":
+          description: >-
+            Payment Required — the x402 challenge. `accepts` lists the
+            acceptable payments, each a `PaymentRequirements`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [x402Version, accepts]
+                properties:
+                  x402Version:
+                    type: integer
+                  accepts:
+                    type: array
+                    items:
+                      $ref: "../../../x402types/openapi.yaml#/components/schemas/PaymentRequirements"
+        "200":
+          description: The resource, returned once a valid `X-PAYMENT` is presented.
+  /settle:
+    post:
+      tags: [Settlement]
+      operationId: settle
+      summary: Settle a verified payment (gateway → facilitator)
+      description: >-
+        Once a facilitator is configured, the gateway hands the same `Payment`
+        it verified — plus the `PaymentRequirements` it issued — to the
+        facilitator as a `SettleRequest`, and the facilitator answers with a
+        `SettleResponse`. A failed settle reports `{ "success": false,
+        "errorReason": "…" }` — one coarse reason, never internal detail.
+        `facilitatorFee` is an optional extension; the self-hosted default
+        takes no cut and omits it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../../../x402types/openapi.yaml#/components/schemas/SettleRequest"
+      responses:
+        "200":
+          description: The settlement result.
+          content:
+            application/json:
+              schema:
+                $ref: "../../../x402types/openapi.yaml#/components/schemas/SettleResponse"

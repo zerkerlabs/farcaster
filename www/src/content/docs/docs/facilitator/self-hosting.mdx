@@ -1,0 +1,85 @@
+---
+title: Self-hosting vs managed
+description: Run your own facilitator, or point at Zerker's — the same binary, the same wire contract, a different operator.
+---
+
+import Commercial from '../../../../components/Commercial.astro';
+
+A tenant enables settlement by configuring **one URL and a credential**:
+
+```bash
+curl -X PATCH -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+     -d '{"facilitator_url":"https://settle.example.com","facilitator_credential_ref":"cred_..."}' \
+     localhost:8080/v1/settlement/config
+```
+
+Whether `facilitator_url` points at infrastructure you run or at Zerker's is
+the entire self-host-vs-managed decision — the gateway's settlement client
+doesn't know or care which. Both options run the identical facilitator
+binary and speak the identical `x402types` wire contract
+(see [The wire contract](/docs/payments/wire-contract/)); the collection
+*capability* is fully OSS.
+
+## Self-hosting a facilitator (OSS)
+
+Running your own facilitator means **you** are the operator that holds a gas
+key, and it never involves Zerker at all — zero external dependency, matching
+the sovereign/self-host pitch. You'll need to provide:
+
+- **mTLS material** — a server certificate/key for the facilitator and a
+  client CA that signs the certificates your gateway (or gateways) present.
+  There is no bearer-token or API-key path; `POST /settle` requires a
+  mutually-authenticated TLS connection, and a connection with no valid
+  client certificate is rejected at the handshake before any request is
+  processed.
+- **A signer** — a local encrypted keystore is the only backend currently
+  wired into the facilitator binary; the `Signer` interface is designed to
+  support bringing your own KMS/HSM, but that wiring doesn't exist yet.
+  See [Signer backends](/docs/facilitator/signers/).
+- **Chain access** — an RPC endpoint, the network and USDC contract address
+  you're settling on, and a funded gas wallet.
+- **Its own Postgres** — the facilitator keeps its own settlement store,
+  entirely separate from the gateway's database (a distinct trust domain,
+  since it's the only component holding a key).
+- **Guardrail limits** — a conservative per-transaction maximum and a
+  per-account daily settlement ceiling; the facilitator refuses to start
+  without them, rather than defaulting to "no limit."
+- **Facilitator accounts** — client certificates are mapped to accounts,
+  provisioned manually for now (there's no self-serve onboarding yet); an
+  unrecognized certificate gets `403`.
+
+Nothing here is metered or gated by Zerker — you own the gas wallet, you pay
+the gas, and collections work with zero calls to Zerker's infrastructure.
+
+## The managed facilitator — <Commercial />
+
+Pointing `facilitator_url` at `https://settle.zerker.dev` — Zerker's hosted
+facilitator — means Zerker operates the gas wallet, the signer, the chain
+RPC, and the uptime, so collections "just work" without you running any
+crypto infrastructure. (The signer is AWS KMS's target backend — see
+[Signer backends](/docs/facilitator/signers/) for current status.) This is the **commercial** side of the open-core
+line: the collection capability itself is free and self-hostable (above);
+what you're paying for on the managed tier is **not running it yourself**.
+
+Onboarding onto the managed facilitator (account provisioning and client
+certificate issuance) is manual for v1, matching the self-hosted path's lack
+of self-serve onboarding — this is a design-partner-era constraint on both
+sides, not something unique to the managed tier.
+
+## Why the line sits here
+
+The gate — verifying a payment authorization is valid — requires no key and
+no outbound dependency, so it's free and self-hostable; it's the primitive
+that makes "self-host *and* monetize" credible. Actually holding a gas key
+and submitting transactions is a materially different commitment (key
+custody, chain liveness, uptime), which is why *running a facilitator at
+all* is still fully OSS — but *not having to run one* is the managed
+product. See [The open-core boundary](/docs/concepts/open-core-boundary/)
+and [Custody posture](/docs/facilitator/custody/) for the full reasoning.
+
+## Full reference
+
+The `/v1/settlement/config` request/response shape (including validation
+rules for `facilitator_url` and `facilitator_credential_ref`) is in the
+[gateway `/v1` REST reference](/docs/api-reference/gateway/), generated from the
+gateway's `openapi.yaml`.
