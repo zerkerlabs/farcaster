@@ -1,0 +1,84 @@
+---
+title: Custody posture
+description: What the facilitator holds, what it never touches, and why that's true whether you self-host it or use Zerker's managed one.
+---
+
+import Commercial from '../../../../components/Commercial.astro';
+
+The facilitator is the **one place in the entire Farcaster system that holds
+a signing key.** Everywhere else — the gateway, the SDKs, Zerker's control
+plane — is deliberately keyless. Understanding exactly what that one key is
+(and isn't) is the whole custody story.
+
+## The payer never gives up custody of their funds
+
+EIP-3009's `transferWithAuthorization` is **payer-signed** and binds the
+recipient, amount, and a single-use nonce into the signature itself. Whoever
+submits that signed authorization on-chain can only execute the *exact*
+transfer the payer authorized — they cannot redirect it, change the amount,
+or replay it. So even the party that *does* hold a key (the facilitator)
+never takes custody of the USDC being transferred: it moves **payer →
+operator `payTo`, directly**, in a single on-chain transaction. The
+facilitator is a relayer, not a custodian of funds.
+
+## The one key the facilitator holds is a gas key
+
+What the facilitator *does* hold is a **gas wallet** — the key that pays the
+network fee to submit the transaction. That key:
+
+- Never signs a transfer of the payer's or the operator's funds — only the
+  gas payment for broadcasting the transaction the payer already signed.
+- Is reached exclusively through a `Signer` interface
+  (see [Signer backends](/docs/facilitator/signers/)) — application code
+  never sees key material directly, whichever backend is configured.
+- Is never logged, never returned in any response, and never leaves the
+  signer boundary (in the AWS KMS backend, the key never leaves the HSM at
+  all).
+
+A compromised gas key lets an attacker drain that one wallet's gas balance
+(bounded, monitored, and capped by `/healthz` readiness — see
+[Endpoints](/docs/facilitator/endpoints/)); it does not expose payer or
+operator funds, because those never route through a key the facilitator
+holds.
+
+## The gateway holds no key at all
+
+The gateway — the OSS product every self-hoster runs — never holds a
+signing key of any kind, gas or otherwise. It locally verifies a payment
+authorization's signature (a read operation over what the caller already
+signed) and, if settlement is enabled, makes an outbound HTTPS call handing
+that verified authorization to a facilitator. See
+[Sovereignty & no-custody](/docs/concepts/sovereignty/) and
+[Gate vs settle](/docs/payments/gate-vs-settle/).
+
+## Independent re-verification — the facilitator trusts no caller
+
+Because the facilitator is the party about to spend gas, it does not trust
+that the gateway (or any other caller) already verified the payment
+correctly. Before submitting anything on-chain, `/settle` **independently
+re-checks**: the signature recovers to the claimed payer, the amount and
+recipient match the payment requirements, the authorization is within its
+validity window, and the network/asset pair is one this deployment accepts.
+Any check failing means no submission — the facilitator never burns gas on
+an invalid or out-of-policy transfer, whether the caller made an honest
+mistake or is actively hostile.
+
+## Self-hosted vs managed — same posture, different operator
+
+This custody posture is **identical** whether you run the facilitator
+yourself or point at Zerker's managed one — the code is the same binary
+either way (see [Self-hosting vs managed](/docs/facilitator/self-hosting/)).
+What differs is *who* operates the gas wallet and *where* the key material
+lives:
+
+| | Self-hosted (OSS) | Managed (<Commercial />) |
+|---|---|---|
+| Who holds the gas key | You | Zerker |
+| Signer backend | Local encrypted keystore (bring-your-own KMS/HSM designed for, not yet wired) | Local encrypted keystore today; AWS KMS (HSM-backed) is the target — see [Signer backends](/docs/facilitator/signers/) |
+| Who pays gas | You | Zerker |
+| Custody of payer/operator funds | Neither — payer-signed transfer moves funds directly | Neither — same guarantee |
+
+Neither deployment mode ever gives Zerker (or you, in the self-hosted case)
+custody of anyone's funds — only of the narrow, bounded gas wallet that pays
+for submission. That is the guarantee the sovereign/no-custody positioning
+rests on, and it holds regardless of which tier you're on.

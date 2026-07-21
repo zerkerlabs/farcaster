@@ -1,0 +1,32 @@
+{
+  "name": "@zerkerlabs/farcaster-www",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Farcaster product website — marketing landing + embedded developer docs, one Astro + Starlight app.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "astro check",
+    "check-links": "linkinator ./dist --recurse --silent --skip \"^https?://(?!localhost)\"",
+    "check": "npm run lint && npm run build && npm run check-links"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.0",
+    "astro": "^7.0.2",
+    "starlight-openapi": "0.26.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.0",
+    "linkinator": "^6.0.0",
+    "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "form-data": "^4.0.6",
+    "uuid": "^11.1.1"
+  }
+}

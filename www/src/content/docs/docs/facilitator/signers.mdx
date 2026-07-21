@@ -1,0 +1,62 @@
+---
+title: Signer backends
+description: The local encrypted keystore versus AWS KMS — the same Signer interface, a swappable backend.
+---
+
+import Commercial from '../../../../components/Commercial.astro';
+
+The facilitator's gas key is reached through exactly one seam — a `Signer`
+interface — everywhere else in the codebase. Application code can ask a
+`Signer` for its address and for a signature over a 32-byte hash; it can
+never ask for the key itself. Two backends implement that interface today.
+
+## Local keystore (self-hostable)
+
+A secp256k1 key held in the facilitator process, loaded from a
+local-encrypted Web3 keystore file and a passphrase:
+
+```bash
+export FACILITATOR_SIGNER_KEYSTORE_FILE=/path/to/keystore.json
+export FACILITATOR_SIGNER_KEYSTORE_PASSPHRASE=...
+```
+
+This is the escape hatch off AWS entirely — a sovereign operator runs the
+identical facilitator binary with a key they generated and hold themselves,
+no dependency on any specific cloud KMS. It's the default (and only) signer
+wired for a self-hosted deployment; you provide the keystore and its gas
+wallet address, and fund that wallet with enough native gas token to cover
+submissions.
+
+## AWS KMS (managed) — <Commercial />
+
+An HSM-backed secp256k1 signing key (`ECC_SECG_P256K1`) that never leaves
+AWS KMS. The facilitator sends KMS a pre-computed digest and gets back a
+signature; the private key material is never in process memory, never
+logged, and never returned by any API call. This is the target backend for
+Zerker's managed facilitator — the `Signer` implementation exists
+(`internal/chain/awskms`), but it isn't wired into the facilitator binary's
+startup path yet, so the managed deployment currently runs the same local
+keystore signer as a self-hosted one. Once wired, the AWS credentials, the
+key policy, and the IAM wiring around it will be managed deployment
+configuration, not something a self-hoster needs to set up.
+
+## Same binary, one interface
+
+Both backends satisfy the same narrow interface:
+
+```go
+type Signer interface {
+    Address() common.Address
+    SignHash(ctx context.Context, hash []byte) ([]byte, error)
+}
+```
+
+Nothing downstream of the signer — the chain client, the settle
+orchestration, the guardrails — knows or cares which backend is behind it.
+This is deliberate: it's what lets the exact same facilitator binary serve
+both the self-hosted (OSS) and the Zerker-managed (<Commercial />)
+deployment, differing only in which `Signer` is injected at startup. See
+[Custody posture](/docs/facilitator/custody/) for why this one seam is the
+whole story for gas-key custody, and
+[Self-hosting vs managed](/docs/facilitator/self-hosting/) for what else
+differs between the two deployment modes.

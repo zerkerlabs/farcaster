@@ -10,6 +10,10 @@ It composes with the rest of the Zerker stack:
 [Treeship](https://github.com/zerkerlabs/treeship) (portable trust receipts) and
 [Zmem](https://github.com/zerkerlabs/zmem) (verifiable agent memory).
 
+**Documentation:** <https://farcaster-jade.vercel.app> — guides, concepts, and the
+generated API reference. The site is built from [`www/`](www/) in this repo, so
+docs ship with the code they describe.
+
 ## What's here
 
 A Go workspace monorepo (`go.work`):
@@ -20,6 +24,9 @@ A Go workspace monorepo (`go.work`):
 | `facilitator/` | The self-hostable x402 `/settle` server — independently re-verifies a payment and submits it on-chain with **your own** gas key |
 | `x402types/` | The shared x402 wire contract |
 | `sdk/go/` | Go client SDK |
+
+Plus `www/` — the product website and developer docs (Astro + Starlight). It is
+not a Go module, so it sits outside `go.work` and carries its own gate.
 
 ## Quickstart
 
@@ -71,6 +78,7 @@ FARCASTER_DATABASE_URL="postgres://user:pass@localhost:5432/farcaster?sslmode=di
 make tools              # once per checkout: install pinned gofumpt + golangci-lint
 make check              # the full gate: tidy, format, vet, lint, race-tested tests
 make -C gateway check   # gate a single module
+make -C www check       # gate the website (not covered by the root `make check`)
 make run                # run the gateway locally (:8080)
 make help               # list targets
 ```

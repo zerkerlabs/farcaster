@@ -1,0 +1,15 @@
+---
+// Reusable inline marker for managed-tier ("Commercial") material: commercial
+// surfaces are documented in place with a visible badge, not hidden in a
+// separate tree. Wraps Starlight's own
+// <Badge> so every commercial mention across the docs renders identically.
+import { Badge } from '@astrojs/starlight/components';
+
+interface Props {
+  label?: string;
+}
+
+const { label = 'Commercial' } = Astro.props;
+---
+
+<Badge text={label} variant="caution" size="small" />
