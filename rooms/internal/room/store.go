@@ -13,15 +13,15 @@ import (
 // reads and mutations to it.
 type Store struct {
 	mu       sync.RWMutex
-	rooms    map[string]map[string]*Room // tenantID -> roomID -> *Room
-	messages map[string][]*Message       // roomID -> ordered messages
+	rooms    map[string]map[string]*Room      // tenantID -> roomID -> *Room
+	messages map[string]map[string][]*Message // tenantID -> roomID -> ordered messages
 }
 
 // NewStore returns an empty Store ready for use.
 func NewStore() *Store {
 	return &Store{
 		rooms:    make(map[string]map[string]*Room),
-		messages: make(map[string][]*Message),
+		messages: make(map[string]map[string][]*Message),
 	}
 }
 
@@ -118,8 +118,9 @@ func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentT
 	return cloneMember(m), nil
 }
 
-// AppendMessage records a message in a room. Returns ErrNotFound if roomID does
-// not exist or belongs to a different tenant.
+// AppendMessage records a message in a room, authored by one of its members.
+// Returns ErrNotFound if roomID does not exist or belongs to a different
+// tenant, and ErrMemberNotFound if memberID is not seated in that room.
 func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, body string) (*Message, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -133,8 +134,16 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, err := s.find(tenantID, roomID); err != nil {
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
 		return nil, err
+	}
+
+	// A message must be attributable to someone actually in the room.
+	// Without this a caller could persist a message pointing at a member ID
+	// that never existed, or one belonging to a different room entirely.
+	if !hasMember(r, memberID) {
+		return nil, ErrMemberNotFound
 	}
 
 	m := &Message{
@@ -143,8 +152,21 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 		Body:      body,
 		CreatedAt: time.Now().UTC(),
 	}
-	s.messages[roomID] = append(s.messages[roomID], m)
+	if s.messages[tenantID] == nil {
+		s.messages[tenantID] = make(map[string][]*Message)
+	}
+	s.messages[tenantID][roomID] = append(s.messages[tenantID][roomID], m)
 	return cloneMessage(m), nil
+}
+
+// hasMember reports whether memberID is seated in r.
+func hasMember(r *Room, memberID string) bool {
+	for _, m := range r.Members {
+		if m.ID == memberID {
+			return true
+		}
+	}
+	return false
 }
 
 // Messages returns a room's messages in append order. Returns ErrNotFound if
@@ -161,7 +183,7 @@ func (s *Store) Messages(ctx context.Context, tenantID, roomID string) ([]*Messa
 		return nil, err
 	}
 
-	msgs := s.messages[roomID]
+	msgs := s.messages[tenantID][roomID]
 	out := make([]*Message, len(msgs))
 	for i, m := range msgs {
 		out[i] = cloneMessage(m)

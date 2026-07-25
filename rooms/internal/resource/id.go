@@ -1,10 +1,10 @@
 // Package resource provides shared utilities for Rooms resource identifiers.
 //
 // Every resource type in Farcaster is identified by a prefixed opaque string of
-// the form "<prefix>_<uuidv7>" (ADR-0009); this mirrors the convention the
-// gateway module owns in gateway/internal/resource. Rooms does not import that
-// package — modules do not share internal packages — so it keeps its own copy
-// of the same generation logic rather than inventing a second scheme.
+// the form "<prefix>_<uuidv7>". This mirrors the convention the gateway module
+// owns in gateway/internal/resource. Rooms does not import that package —
+// modules do not share internal packages — so it keeps its own copy of the same
+// generation logic rather than inventing a second scheme.
 package resource
 
 import (

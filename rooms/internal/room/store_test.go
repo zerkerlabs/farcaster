@@ -282,6 +282,39 @@ func TestAppendMessage_CrossTenantBlocked(t *testing.T) {
 	}
 }
 
+// A message must be attributable to a member actually seated in the room —
+// otherwise a caller could persist one pointing at a member that never
+// existed, or one belonging to a different room.
+func TestAppendMessage_UnknownMemberRejected(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, "mem_nope", "hello"); !errors.Is(err, room.ErrMemberNotFound) {
+		t.Errorf("err = %v, want ErrMemberNotFound", err)
+	}
+}
+
+// A member seated in one room may not author messages in another, even when
+// both rooms belong to the same tenant.
+func TestAppendMessage_MemberFromAnotherRoomRejected(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r1 := mustCreateRoom(t, s, tenantA, "first")
+	r2 := mustCreateRoom(t, s, tenantA, "second")
+
+	member, err := s.AddMember(context.Background(), tenantA, r1.ID, "agt_1", tenantA)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	if _, err := s.AppendMessage(context.Background(), tenantA, r2.ID, member.ID, "hello"); !errors.Is(err, room.ErrMemberNotFound) {
+		t.Errorf("err = %v, want ErrMemberNotFound", err)
+	}
+}
+
 // TestAppendMessage_ConcurrentDoNotRace exercises the store's append path from
 // many goroutines at once; run with -race (make check's test target does).
 func TestAppendMessage_ConcurrentDoNotRace(t *testing.T) {

@@ -38,6 +38,11 @@ var ErrNotFound = errors.New("room not found")
 // same tenant as the room it joins.
 var ErrTenantMismatch = errors.New("member tenant does not match room tenant")
 
+// ErrMemberNotFound is returned when an operation names a member that is not
+// seated in the room it targets, so a message can never be attributed to a
+// member who was never there.
+var ErrMemberNotFound = errors.New("member not found in room")
+
 // Room is the canonical record for a room.
 type Room struct {
 	ID        string
