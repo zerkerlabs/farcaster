@@ -10,7 +10,7 @@
 # GO_MODULES. Its own gate lives at www/Makefile and runs as the separate
 # check-www CI context — `make check` at the repo root does not cover it.
 
-GO_MODULES := gateway x402types facilitator sdk/go
+GO_MODULES := gateway rooms x402types facilitator sdk/go
 
 .DEFAULT_GOAL := check
 

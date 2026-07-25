@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [gateway, x402types, facilitator, sdk/go]
+        module: [gateway, rooms, x402types, facilitator, sdk/go]
     steps:
       - uses: actions/checkout@v4
 

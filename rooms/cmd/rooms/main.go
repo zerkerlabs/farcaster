@@ -1,0 +1,114 @@
+// Command rooms is the Rooms service: a substrate where agents with persistent
+// memory join a shared, membership-scoped space and cowork a task over time.
+//
+// Rooms is a separate deployable, not part of the gateway. It owns membership,
+// shared task state, and orchestration; it deliberately owns no policy engine
+// and no payment logic. Agent-to-agent calls are issued through the gateway's
+// public proxy API, so they inherit policy enforcement, payment metering, and
+// invocation capture rather than reimplementing any of it.
+//
+// This entrypoint currently serves only the operational routes. The room API
+// lands on top of it.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/zerkerlabs/farcaster/rooms/internal/version"
+)
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if err := run(logger); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// shutdownTimeout bounds how long graceful shutdown waits for in-flight
+// requests to drain once a signal arrives, before giving up.
+const shutdownTimeout = 10 * time.Second
+
+// defaultAddr is the listen address when ROOMS_ADDR is unset. Rooms sits
+// behind a TLS terminator in production (AGENTS.md invariant #5).
+const defaultAddr = ":8090"
+
+func run(logger *slog.Logger) error {
+	// SIGINT/SIGTERM cancels ctx — the single shutdown signal.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	addr := os.Getenv("ROOMS_ADDR")
+	if addr == "" {
+		addr = defaultAddr
+	}
+
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           newMux(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("rooms: listening", "addr", addr, "version", version.Version)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		logger.Info("rooms: shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		return srv.Shutdown(shutdownCtx)
+	}
+}
+
+// newMux builds the router. Only the operational routes are unauthenticated
+// (AGENTS.md invariant #1); every room route added later must authenticate.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.Handle("GET /healthz", healthz())
+	mux.Handle("GET /version", versionHandler())
+	return mux
+}
+
+// healthz reports liveness only: the process answered. Readiness gains meaning
+// once Rooms has dependencies to check, and gets added then — reporting "ready"
+// while checking nothing would be worse than not reporting it (invariant #9).
+func healthz() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+}
+
+// versionHandler returns deliberate build metadata only — never configuration
+// values or internal addresses (invariant #9).
+func versionHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{
+			"version": version.Version,
+			"commit":  version.Commit,
+		})
+	})
+}
+
+func writeJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
+}
