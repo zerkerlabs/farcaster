@@ -15,7 +15,15 @@ LDFLAGS    := -X github.com/zerkerlabs/farcaster/gateway/internal/version.Versio
 .DEFAULT_GOAL := check
 
 .PHONY: check
-check: tidy-check fmt-check vet lint test ## Run the full quality gate (build is implied by vet/test)
+check: tidy-check fmt-check vet lint test docs-check ## Run the full quality gate (build is implied by vet/test)
+
+.PHONY: docs
+docs: ## Emit the config/env reference the website includes (from internal/config)
+	$(GO) run ./cmd/gendocs
+
+.PHONY: docs-check
+docs-check: ## Fail if the committed config/env reference is stale (run 'make docs')
+	$(GO) run ./cmd/gendocs -check
 
 .PHONY: build
 build: ## Build the gateway binary into ./bin
