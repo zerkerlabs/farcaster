@@ -84,3 +84,44 @@ jobs:
       - name: make check
         if: steps.changed.outputs.run == 'true'
         run: make -C www check
+
+  # The gateway's persistence suites are behind the `integration` build tag, so
+  # `make check` does not run them — they need a real Postgres. Without this job
+  # nothing exercises them at all.
+  #
+  # Deliberately NOT gated on `check`: the suites are independent of the unit
+  # gate, and running them in parallel keeps total CI wall-clock down.
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: farcaster
+          POSTGRES_PASSWORD: farcaster
+          POSTGRES_DB: farcaster_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: gateway/go.sum
+
+      - name: Integration tests (race)
+        env:
+          TEST_DATABASE_URL: postgres://farcaster:farcaster@localhost:5432/farcaster_test
+        # -p 1 runs one package at a time. The integration suites (agent,
+        # invocation, credential, policy, settlement) all TRUNCATE shared tables
+        # in per-test setup against the ONE TEST_DATABASE_URL, so concurrent
+        # packages would wipe each other's rows mid-test. Serialize packages.
+        run: make -C gateway integration-test
