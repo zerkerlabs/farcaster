@@ -7,8 +7,8 @@
 // public proxy API, so they inherit policy enforcement, payment metering, and
 // invocation capture rather than reimplementing any of it.
 //
-// This entrypoint currently serves only the operational routes. The room API
-// lands on top of it.
+// This entrypoint serves the operational routes plus the v1 room API: create
+// a room, read it back, seat a member, and post a message.
 package main
 
 import (
@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
+	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 	"github.com/zerkerlabs/farcaster/rooms/internal/version"
 )
 
@@ -53,7 +55,7 @@ func run(logger *slog.Logger) error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(),
+		Handler:           newMux(logger),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -79,11 +81,15 @@ func run(logger *slog.Logger) error {
 }
 
 // newMux builds the router. Only the operational routes are unauthenticated
-// (AGENTS.md invariant #1); every room route added later must authenticate.
-func newMux() *http.ServeMux {
+// (AGENTS.md invariant #1). The four room routes are tenant-scoped through
+// the tenant context seam (rooms/internal/tenant); bearer-token
+// authentication that populates it lands separately.
+func newMux(logger *slog.Logger) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /version", versionHandler())
+
+	httpapi.NewHandler(room.NewStore(), logger).RegisterRoutes(mux)
 	return mux
 }
 
