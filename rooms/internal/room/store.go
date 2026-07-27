@@ -2,32 +2,44 @@ package room
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/zerkerlabs/farcaster/rooms/internal/resource"
 )
 
-// Store is a thread-safe, tenant-scoped, in-memory Room store. It holds rooms,
-// their members, and their messages; every method takes a tenant ID and scopes
-// reads and mutations to it.
+// Store is a thread-safe, tenant-scoped, in-memory Room store. It holds rooms
+// and their members; a room's messages are not stored separately — they are
+// replayed from its event log on read.
 type Store struct {
-	mu       sync.RWMutex
-	rooms    map[string]map[string]*Room      // tenantID -> roomID -> *Room
-	messages map[string]map[string][]*Message // tenantID -> roomID -> ordered messages
+	mu    sync.RWMutex
+	rooms map[string]map[string]*Room // tenantID -> roomID -> *Room
 }
 
 // NewStore returns an empty Store ready for use.
 func NewStore() *Store {
 	return &Store{
-		rooms:    make(map[string]map[string]*Room),
-		messages: make(map[string]map[string][]*Message),
+		rooms: make(map[string]map[string]*Room),
 	}
 }
 
-// CreateRoom creates a new room under tenantID with the given goal. The room
-// starts in StateOpen with no members.
+// CreateRoom creates a new room under tenantID with the given goal and the
+// default turn budget. The room starts in StateOpen with no members.
 func (s *Store) CreateRoom(ctx context.Context, tenantID, goal string) (*Room, error) {
+	return s.createRoom(ctx, tenantID, goal, DefaultTurnBudget)
+}
+
+// CreateRoomWithBudget is CreateRoom with an explicit, positive turn budget in
+// place of the default.
+func (s *Store) CreateRoomWithBudget(ctx context.Context, tenantID, goal string, turnBudget int) (*Room, error) {
+	if turnBudget <= 0 {
+		return nil, fmt.Errorf("turn budget must be positive, got %d", turnBudget)
+	}
+	return s.createRoom(ctx, tenantID, goal, turnBudget)
+}
+
+func (s *Store) createRoom(ctx context.Context, tenantID, goal string, turnBudget int) (*Room, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -41,11 +53,12 @@ func (s *Store) CreateRoom(ctx context.Context, tenantID, goal string) (*Room, e
 	defer s.mu.Unlock()
 
 	r := &Room{
-		ID:        id,
-		TenantID:  tenantID,
-		Goal:      goal,
-		State:     StateOpen,
-		CreatedAt: time.Now().UTC(),
+		ID:         id,
+		TenantID:   tenantID,
+		Goal:       goal,
+		State:      StateOpen,
+		CreatedAt:  time.Now().UTC(),
+		TurnBudget: turnBudget,
 	}
 	s.bucket(tenantID)[id] = r
 	return cloneRoom(r), nil
@@ -88,6 +101,7 @@ func (s *Store) ListRooms(ctx context.Context, tenantID string) ([]*Room, error)
 // returns ErrNotFound if roomID does not exist or belongs to another tenant.
 // agentTenantID is the tenant that owns agentID; if it differs from the room's
 // tenant, the add is rejected with ErrTenantMismatch (rooms are single-tenant).
+// Returns ErrRoomTerminated if the room has already reached a terminal state.
 func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentTenantID string) (*Member, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -105,6 +119,9 @@ func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentT
 	if err != nil {
 		return nil, err
 	}
+	if r.State != StateOpen {
+		return nil, ErrRoomTerminated
+	}
 	if agentTenantID != r.TenantID {
 		return nil, ErrTenantMismatch
 	}
@@ -115,12 +132,17 @@ func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentT
 		JoinedAt: time.Now().UTC(),
 	}
 	r.Members = append(r.Members, m)
+	s.appendEvent(r, EventMemberJoined, MemberJoinedPayload{Member: m})
 	return cloneMember(m), nil
 }
 
 // AppendMessage records a message in a room, authored by one of its members.
-// Returns ErrNotFound if roomID does not exist or belongs to a different
-// tenant, and ErrMemberNotFound if memberID is not seated in that room.
+// Posting a message consumes one turn; if doing so would exceed the room's
+// turn budget, the message is rejected with ErrTurnBudgetExceeded and the
+// room transitions to StateAbandoned instead. Returns ErrNotFound if roomID
+// does not exist or belongs to a different tenant, ErrMemberNotFound if
+// memberID is not seated in that room, and ErrRoomTerminated if the room has
+// already reached a terminal state.
 func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, body string) (*Message, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -138,6 +160,9 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 	if err != nil {
 		return nil, err
 	}
+	if r.State != StateOpen {
+		return nil, ErrRoomTerminated
+	}
 
 	// A message must be attributable to someone actually in the room.
 	// Without this a caller could persist a message pointing at a member ID
@@ -146,17 +171,44 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 		return nil, ErrMemberNotFound
 	}
 
+	if turnsConsumed(r)+1 > r.TurnBudget {
+		r.State = StateAbandoned
+		s.appendEvent(r, EventRoomTerminated, RoomTerminatedPayload{State: StateAbandoned})
+		return nil, ErrTurnBudgetExceeded
+	}
+
 	m := &Message{
 		ID:        id,
 		MemberID:  memberID,
 		Body:      body,
 		CreatedAt: time.Now().UTC(),
 	}
-	if s.messages[tenantID] == nil {
-		s.messages[tenantID] = make(map[string][]*Message)
-	}
-	s.messages[tenantID][roomID] = append(s.messages[tenantID][roomID], m)
+	s.appendEvent(r, EventMessagePosted, MessagePostedPayload{Message: m})
 	return cloneMessage(m), nil
+}
+
+// CompleteRoom explicitly marks a room's goal as met. Returns ErrNotFound if
+// roomID does not exist or belongs to a different tenant, and
+// ErrRoomTerminated if the room has already reached a terminal state.
+func (s *Store) CompleteRoom(ctx context.Context, tenantID, roomID string) (*Room, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if r.State != StateOpen {
+		return nil, ErrRoomTerminated
+	}
+
+	r.State = StateCompleted
+	s.appendEvent(r, EventRoomTerminated, RoomTerminatedPayload{State: StateCompleted})
+	return cloneRoom(r), nil
 }
 
 // hasMember reports whether memberID is seated in r.
@@ -169,8 +221,9 @@ func hasMember(r *Room, memberID string) bool {
 	return false
 }
 
-// Messages returns a room's messages in append order. Returns ErrNotFound if
-// roomID does not exist or belongs to a different tenant.
+// Messages returns a room's transcript: its messages in append order,
+// replayed from its event log. Returns ErrNotFound if roomID does not exist
+// or belongs to a different tenant.
 func (s *Store) Messages(ctx context.Context, tenantID, roomID string) ([]*Message, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -179,16 +232,73 @@ func (s *Store) Messages(ctx context.Context, tenantID, roomID string) ([]*Messa
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if _, err := s.find(tenantID, roomID); err != nil {
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return transcript(r), nil
+}
+
+// Events returns a room's full event log in sequence order. Returns
+// ErrNotFound if roomID does not exist or belongs to a different tenant.
+func (s *Store) Events(ctx context.Context, tenantID, roomID string) ([]*Event, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	msgs := s.messages[tenantID][roomID]
-	out := make([]*Message, len(msgs))
-	for i, m := range msgs {
-		out[i] = cloneMessage(m)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*Event, len(r.Events))
+	for i, ev := range r.Events {
+		out[i] = cloneEvent(ev)
 	}
 	return out, nil
+}
+
+// transcript replays r's event log into its ordered message history. A room
+// keeps no separate message list, so this is the only source of the
+// transcript. Caller must hold s.mu (any lock).
+func transcript(r *Room) []*Message {
+	msgs := make([]*Message, 0, len(r.Events))
+	for _, ev := range r.Events {
+		if ev.Kind != EventMessagePosted {
+			continue
+		}
+		p := ev.Payload.(MessagePostedPayload)
+		msgs = append(msgs, cloneMessage(p.Message))
+	}
+	return msgs
+}
+
+// turnsConsumed counts how many turns r's event log has already spent.
+// Posting a message is the only turn-consuming action. Caller must hold s.mu
+// (any lock).
+func turnsConsumed(r *Room) int {
+	n := 0
+	for _, ev := range r.Events {
+		if ev.Kind == EventMessagePosted {
+			n++
+		}
+	}
+	return n
+}
+
+// appendEvent appends a new Event of the given kind and payload to r's log,
+// assigning the next contiguous sequence number. Caller must hold s.mu (write
+// lock).
+func (s *Store) appendEvent(r *Room, kind EventKind, payload any) {
+	r.Events = append(r.Events, &Event{
+		Sequence:  len(r.Events) + 1,
+		Kind:      kind,
+		Timestamp: time.Now().UTC(),
+		Payload:   payload,
+	})
 }
 
 // bucket returns (and lazily initialises) the per-tenant room map. Caller must
@@ -214,13 +324,19 @@ func (s *Store) find(tenantID, roomID string) (*Room, error) {
 }
 
 // cloneRoom returns a deep copy of r so callers cannot mutate stored state
-// through a shared Members slice.
+// through a shared Members or Events slice.
 func cloneRoom(r *Room) *Room {
 	c := *r
 	if r.Members != nil {
 		c.Members = make([]*Member, len(r.Members))
 		for i, m := range r.Members {
 			c.Members[i] = cloneMember(m)
+		}
+	}
+	if r.Events != nil {
+		c.Events = make([]*Event, len(r.Events))
+		for i, ev := range r.Events {
+			c.Events[i] = cloneEvent(ev)
 		}
 	}
 	return &c
@@ -233,5 +349,21 @@ func cloneMember(m *Member) *Member {
 
 func cloneMessage(m *Message) *Message {
 	c := *m
+	return &c
+}
+
+// cloneEvent returns a deep copy of ev, including any pointer held in its
+// Payload, so callers cannot mutate stored state through a returned Event.
+func cloneEvent(ev *Event) *Event {
+	c := *ev
+	switch p := ev.Payload.(type) {
+	case MemberJoinedPayload:
+		c.Payload = MemberJoinedPayload{Member: cloneMember(p.Member)}
+	case MessagePostedPayload:
+		c.Payload = MessagePostedPayload{Message: cloneMessage(p.Message)}
+	default:
+		// RoomTerminatedPayload (and any future value-only payload) holds no
+		// pointers, so the shallow copy above already isolated it.
+	}
 	return &c
 }
