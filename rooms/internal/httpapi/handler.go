@@ -9,18 +9,21 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
 // Handler holds the shared dependencies for the Rooms HTTP handlers.
 type Handler struct {
-	store  *room.Store
-	logger *slog.Logger
+	store       *room.Store
+	memoryStore memory.Store
+	logger      *slog.Logger
 }
 
-// NewHandler returns a Handler backed by store, logging to logger.
-func NewHandler(store *room.Store, logger *slog.Logger) *Handler {
-	return &Handler{store: store, logger: logger}
+// NewHandler returns a Handler backed by store, logging to logger. memoryStore
+// is the seam onboarding a member reads from (rooms/internal/memory).
+func NewHandler(store *room.Store, memoryStore memory.Store, logger *slog.Logger) *Handler {
+	return &Handler{store: store, memoryStore: memoryStore, logger: logger}
 }
 
 // RegisterRoutes mounts the four v1 room routes onto mux.

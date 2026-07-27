@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
+	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 	"github.com/zerkerlabs/farcaster/rooms/internal/version"
 )
@@ -89,7 +90,10 @@ func newMux(logger *slog.Logger) *http.ServeMux {
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /version", versionHandler())
 
-	httpapi.NewHandler(room.NewStore(), logger).RegisterRoutes(mux)
+	// memory.NewFake is a stand-in for the real memory backend, which does not
+	// exist yet (rooms/internal/memory); a real client wires in here later
+	// without changing the httpapi.Handler seam.
+	httpapi.NewHandler(room.NewStore(), memory.NewFake(), logger).RegisterRoutes(mux)
 	return mux
 }
 
