@@ -320,14 +320,17 @@ func TestAppendMessage_MemberFromAnotherRoomRejected(t *testing.T) {
 func TestAppendMessage_ConcurrentDoNotRace(t *testing.T) {
 	t.Parallel()
 
+	const n = 50
 	s := room.NewStore()
-	r := mustCreateRoom(t, s, tenantA, "goal")
+	r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", n)
+	if err != nil {
+		t.Fatalf("CreateRoomWithBudget: %v", err)
+	}
 	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA)
 	if err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
 
-	const n = 50
 	var wg sync.WaitGroup
 	wg.Add(n)
 	for i := range n {
@@ -354,5 +357,315 @@ func TestAppendMessage_ConcurrentDoNotRace(t *testing.T) {
 			t.Fatalf("duplicate message ID: %q", m.ID)
 		}
 		ids[m.ID] = true
+	}
+
+	// Sequence numbers assigned under concurrent append must still form a
+	// valid contiguous run starting at 1 — the store's single write lock
+	// serializes appends even though the callers race.
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	seqs := make(map[int]bool, len(events))
+	for _, ev := range events {
+		if seqs[ev.Sequence] {
+			t.Fatalf("duplicate sequence number: %d", ev.Sequence)
+		}
+		seqs[ev.Sequence] = true
+	}
+	// 1 member-joined event + n message-posted events.
+	want := n + 1
+	if len(events) != want {
+		t.Fatalf("len(events) = %d, want %d", len(events), want)
+	}
+	for i := 1; i <= want; i++ {
+		if !seqs[i] {
+			t.Errorf("missing sequence number %d", i)
+		}
+	}
+}
+
+// --------------------------------------------------------------- Events ---
+
+// TestEvents_SequenceNumbering verifies that every kind of append —
+// membership, messages, and terminal transitions — shares one contiguous,
+// per-room sequence starting at 1.
+func TestEvents_SequenceNumbering(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, member.ID, "hello"); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, member.ID, "world"); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+	if _, err := s.CompleteRoom(context.Background(), tenantA, r.ID); err != nil {
+		t.Fatalf("CompleteRoom: %v", err)
+	}
+
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+
+	wantKinds := []room.EventKind{
+		room.EventMemberJoined,
+		room.EventMessagePosted,
+		room.EventMessagePosted,
+		room.EventRoomTerminated,
+	}
+	if len(events) != len(wantKinds) {
+		t.Fatalf("len(events) = %d, want %d", len(events), len(wantKinds))
+	}
+	for i, ev := range events {
+		wantSeq := i + 1
+		if ev.Sequence != wantSeq {
+			t.Errorf("events[%d].Sequence = %d, want %d", i, ev.Sequence, wantSeq)
+		}
+		if ev.Kind != wantKinds[i] {
+			t.Errorf("events[%d].Kind = %q, want %q", i, ev.Kind, wantKinds[i])
+		}
+		if ev.Timestamp.IsZero() {
+			t.Errorf("events[%d].Timestamp is zero", i)
+		}
+	}
+}
+
+// ------------------------------------------------------------ transcript ---
+
+// TestMessages_ReplaysTranscriptFromEvents verifies that a room's transcript
+// is derived by replaying its event log, in order, skipping non-message
+// events such as the member join and the terminal transition.
+func TestMessages_ReplaysTranscriptFromEvents(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	var want []string
+	for _, body := range []string{"first", "second", "third"} {
+		msg, err := s.AppendMessage(context.Background(), tenantA, r.ID, member.ID, body)
+		if err != nil {
+			t.Fatalf("AppendMessage(%q): %v", body, err)
+		}
+		want = append(want, msg.ID)
+	}
+	if _, err := s.CompleteRoom(context.Background(), tenantA, r.ID); err != nil {
+		t.Fatalf("CompleteRoom: %v", err)
+	}
+
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("len(msgs) = %d, want %d", len(msgs), len(want))
+	}
+	for i, m := range msgs {
+		if m.ID != want[i] {
+			t.Errorf("msgs[%d].ID = %q, want %q", i, m.ID, want[i])
+		}
+		if m.Body != []string{"first", "second", "third"}[i] {
+			t.Errorf("msgs[%d].Body = %q, want %q", i, m.Body, []string{"first", "second", "third"}[i])
+		}
+	}
+}
+
+// ------------------------------------------------------------ turn budget ---
+
+// TestAppendMessage_TurnBudgetExhaustionAbandonsRoom verifies that exceeding
+// a room's turn budget rejects the over-budget message and abandons the room,
+// recording the transition as an event.
+func TestAppendMessage_TurnBudgetExhaustionAbandonsRoom(t *testing.T) {
+	t.Parallel()
+
+	const budget = 2
+	s := room.NewStore()
+	r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", budget)
+	if err != nil {
+		t.Fatalf("CreateRoomWithBudget: %v", err)
+	}
+	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	for i := range budget {
+		if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, member.ID, "msg"); err != nil {
+			t.Fatalf("AppendMessage %d: %v", i, err)
+		}
+	}
+
+	got, err := s.GetRoom(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.State != room.StateOpen {
+		t.Fatalf("State = %q, want %q before exceeding budget", got.State, room.StateOpen)
+	}
+
+	_, err = s.AppendMessage(context.Background(), tenantA, r.ID, member.ID, "one too many")
+	if !errors.Is(err, room.ErrTurnBudgetExceeded) {
+		t.Fatalf("err = %v, want ErrTurnBudgetExceeded", err)
+	}
+
+	got, err = s.GetRoom(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.State != room.StateAbandoned {
+		t.Fatalf("State = %q, want %q after exceeding budget", got.State, room.StateAbandoned)
+	}
+
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != budget {
+		t.Fatalf("len(msgs) = %d, want %d (over-budget message must not be recorded)", len(msgs), budget)
+	}
+
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	last := events[len(events)-1]
+	if last.Kind != room.EventRoomTerminated {
+		t.Fatalf("last event kind = %q, want %q", last.Kind, room.EventRoomTerminated)
+	}
+	payload, ok := last.Payload.(room.RoomTerminatedPayload)
+	if !ok {
+		t.Fatalf("last event payload = %T, want room.RoomTerminatedPayload", last.Payload)
+	}
+	if payload.State != room.StateAbandoned {
+		t.Errorf("terminated payload state = %q, want %q", payload.State, room.StateAbandoned)
+	}
+}
+
+func TestCreateRoomWithBudget_RejectsNonPositive(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		budget int
+	}{
+		{"zero", 0},
+		{"negative", -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := room.NewStore()
+			_, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", tt.budget)
+			if err == nil {
+				t.Fatal("err = nil, want error for non-positive turn budget")
+			}
+		})
+	}
+}
+
+// -------------------------------------------------------------- terminal ---
+
+func TestCompleteRoom(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+
+	got, err := s.CompleteRoom(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("CompleteRoom: %v", err)
+	}
+	if got.State != room.StateCompleted {
+		t.Errorf("State = %q, want %q", got.State, room.StateCompleted)
+	}
+
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	if len(events) != 1 || events[0].Kind != room.EventRoomTerminated {
+		t.Fatalf("events = %+v, want a single EventRoomTerminated", events)
+	}
+}
+
+// TestTerminatedRoomRejectsAppends is table-driven over both terminal states
+// and every append path: appending anything to a terminated room is an
+// error, regardless of how it became terminal.
+func TestTerminatedRoomRejectsAppends(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		terminate func(t *testing.T, s *room.Store, roomID string)
+	}{
+		{
+			name: "completed",
+			terminate: func(t *testing.T, s *room.Store, roomID string) {
+				t.Helper()
+				if _, err := s.CompleteRoom(context.Background(), tenantA, roomID); err != nil {
+					t.Fatalf("CompleteRoom: %v", err)
+				}
+			},
+		},
+		{
+			name: "abandoned via turn budget exhaustion",
+			terminate: func(t *testing.T, s *room.Store, roomID string) {
+				t.Helper()
+				member, err := s.AddMember(context.Background(), tenantA, roomID, "agt_budget_burner", tenantA)
+				if err != nil {
+					t.Fatalf("AddMember: %v", err)
+				}
+				// Budget is 1: the first message spends the only turn, the
+				// second exceeds it and abandons the room.
+				if _, err := s.AppendMessage(context.Background(), tenantA, roomID, member.ID, "spend the turn"); err != nil {
+					t.Fatalf("AppendMessage (spend the turn): %v", err)
+				}
+				if _, err := s.AppendMessage(context.Background(), tenantA, roomID, member.ID, "burn the budget"); !errors.Is(err, room.ErrTurnBudgetExceeded) {
+					t.Fatalf("AppendMessage (burn the budget): err = %v, want ErrTurnBudgetExceeded", err)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := room.NewStore()
+			r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", 1)
+			if err != nil {
+				t.Fatalf("CreateRoomWithBudget: %v", err)
+			}
+			tt.terminate(t, s, r.ID)
+
+			member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_late", tenantA)
+			if err == nil {
+				t.Errorf("AddMember on terminated room: got member %+v, want ErrRoomTerminated", member)
+			} else if !errors.Is(err, room.ErrRoomTerminated) {
+				t.Errorf("AddMember err = %v, want ErrRoomTerminated", err)
+			}
+
+			_, err = s.AppendMessage(context.Background(), tenantA, r.ID, "mem_whoever", "too late")
+			if !errors.Is(err, room.ErrRoomTerminated) {
+				t.Errorf("AppendMessage err = %v, want ErrRoomTerminated", err)
+			}
+
+			_, err = s.CompleteRoom(context.Background(), tenantA, r.ID)
+			if !errors.Is(err, room.ErrRoomTerminated) {
+				t.Errorf("CompleteRoom err = %v, want ErrRoomTerminated", err)
+			}
+		})
 	}
 }
