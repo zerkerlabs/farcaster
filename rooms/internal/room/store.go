@@ -215,6 +215,61 @@ func (s *Store) CompleteRoom(ctx context.Context, tenantID, roomID string) (*Roo
 	return cloneRoom(r), nil
 }
 
+// MemberAgentID returns the AgentID of the member identified by memberID
+// within roomID, so a caller can resolve the gateway agent to deliver an
+// addressed message to before making the proxied call
+// (rooms/internal/gateway). Returns ErrNotFound if roomID does not exist or
+// belongs to a different tenant, and ErrMemberNotFound if memberID is not
+// seated in that room.
+func (s *Store) MemberAgentID(ctx context.Context, tenantID, roomID, memberID string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return "", err
+	}
+	for _, m := range r.Members {
+		if m.ID == memberID {
+			return m.AgentID, nil
+		}
+	}
+	return "", ErrMemberNotFound
+}
+
+// RecordDeliveryFailure appends an EventDeliveryFailed event to a room's log:
+// a message from fromMemberID addressed to toMemberID could not be delivered
+// as a proxied call to toAgentID. It does not consume a turn and does not
+// append a message — a failed call must never look like a delivered one
+// (the caller is responsible for not calling AppendMessage in this case).
+// Returns ErrNotFound if roomID does not exist or belongs to a different
+// tenant.
+func (s *Store) RecordDeliveryFailure(ctx context.Context, tenantID, roomID, fromMemberID, toMemberID, toAgentID, class string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return err
+	}
+
+	s.appendEvent(r, EventDeliveryFailed, DeliveryFailedPayload{
+		FromMemberID: fromMemberID,
+		ToMemberID:   toMemberID,
+		ToAgentID:    toAgentID,
+		Class:        class,
+	})
+	return nil
+}
+
 // hasMember reports whether memberID is seated in r.
 func hasMember(r *Room, memberID string) bool {
 	for _, m := range r.Members {

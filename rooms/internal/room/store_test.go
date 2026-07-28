@@ -603,6 +603,98 @@ func TestCreateRoomWithBudget_RejectsNonPositive(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------- MemberAgentID ---
+
+func TestMemberAgentID(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	t.Run("resolves a seated member", func(t *testing.T) {
+		t.Parallel()
+
+		got, err := s.MemberAgentID(context.Background(), tenantA, r.ID, member.ID)
+		if err != nil {
+			t.Fatalf("MemberAgentID: %v", err)
+		}
+		if got != "agt_1" {
+			t.Errorf("got %q, want %q", got, "agt_1")
+		}
+	})
+
+	t.Run("unknown member is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := s.MemberAgentID(context.Background(), tenantA, r.ID, "mem_nope"); !errors.Is(err, room.ErrMemberNotFound) {
+			t.Errorf("err = %v, want ErrMemberNotFound", err)
+		}
+	})
+
+	t.Run("cross-tenant room is not found", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := s.MemberAgentID(context.Background(), tenantB, r.ID, member.ID); !errors.Is(err, room.ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// ----------------------------------------------------- RecordDeliveryFailure
+
+func TestRecordDeliveryFailure(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	sender, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	recipient, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_recipient", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	if err := s.RecordDeliveryFailure(context.Background(), tenantA, r.ID, sender.ID, recipient.ID, "agt_recipient", "upstream_failure"); err != nil {
+		t.Fatalf("RecordDeliveryFailure: %v", err)
+	}
+
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	last := events[len(events)-1]
+	if last.Kind != room.EventDeliveryFailed {
+		t.Fatalf("last event kind = %q, want %q", last.Kind, room.EventDeliveryFailed)
+	}
+	payload, ok := last.Payload.(room.DeliveryFailedPayload)
+	if !ok {
+		t.Fatalf("last event payload = %T, want room.DeliveryFailedPayload", last.Payload)
+	}
+	if payload.FromMemberID != sender.ID || payload.ToMemberID != recipient.ID || payload.ToAgentID != "agt_recipient" || payload.Class != "upstream_failure" {
+		t.Errorf("payload = %+v, unexpected fields", payload)
+	}
+
+	// A failed delivery must never be recorded (or mistaken for) a posted
+	// message: it consumes no turn and leaves the transcript untouched.
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Errorf("Messages = %v, want empty after a failed delivery", msgs)
+	}
+
+	if err := s.RecordDeliveryFailure(context.Background(), tenantB, r.ID, sender.ID, recipient.ID, "agt_recipient", "caller_error"); !errors.Is(err, room.ErrNotFound) {
+		t.Errorf("cross-tenant RecordDeliveryFailure err = %v, want ErrNotFound", err)
+	}
+}
+
 // -------------------------------------------------------------- terminal ---
 
 func TestCompleteRoom(t *testing.T) {

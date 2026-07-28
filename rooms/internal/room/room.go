@@ -110,6 +110,12 @@ const (
 	EventTaskStateChanged EventKind = "task_state_changed"
 	// EventRoomTerminated records the room reaching a terminal state.
 	EventRoomTerminated EventKind = "room_terminated"
+	// EventDeliveryFailed records that a message addressed to another member
+	// could not be delivered as a proxied call to that member's agent (the
+	// gateway rejected the call or failed to reach it). No EventMessagePosted
+	// event is appended for a message that failed delivery, so a failed call
+	// can never be mistaken for one that reached its recipient.
+	EventDeliveryFailed EventKind = "delivery_failed"
 )
 
 // Event is one entry in a room's append-only log. Every membership change,
@@ -137,4 +143,14 @@ type MessagePostedPayload struct {
 // recording which terminal state the room reached.
 type RoomTerminatedPayload struct {
 	State State
+}
+
+// DeliveryFailedPayload is the Payload of an EventDeliveryFailed event. Class
+// is the classified outcome (e.g. "caller_error" or "upstream_failure") — the
+// raw upstream response is never recorded here (AGENTS.md invariant #3).
+type DeliveryFailedPayload struct {
+	FromMemberID string
+	ToMemberID   string
+	ToAgentID    string
+	Class        string
 }

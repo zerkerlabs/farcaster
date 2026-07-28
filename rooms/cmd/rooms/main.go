@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
@@ -54,9 +56,14 @@ func run(logger *slog.Logger) error {
 		addr = defaultAddr
 	}
 
+	gwClient, err := gateway.New(gatewayConfigFromEnv(logger))
+	if err != nil {
+		return fmt.Errorf("init gateway client: %w", err)
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(logger),
+		Handler:           newMux(logger, gwClient),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -85,7 +92,7 @@ func run(logger *slog.Logger) error {
 // (AGENTS.md invariant #1). The four room routes are tenant-scoped through
 // the tenant context seam (rooms/internal/tenant); bearer-token
 // authentication that populates it lands separately.
-func newMux(logger *slog.Logger) *http.ServeMux {
+func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /version", versionHandler())
@@ -93,8 +100,31 @@ func newMux(logger *slog.Logger) *http.ServeMux {
 	// memory.NewFake is a stand-in for the real memory backend, which does not
 	// exist yet (rooms/internal/memory); a real client wires in here later
 	// without changing the httpapi.Handler seam.
-	httpapi.NewHandler(room.NewStore(), memory.NewFake(), logger).RegisterRoutes(mux)
+	httpapi.NewHandler(room.NewStore(), memory.NewFake(), gwClient, logger).RegisterRoutes(mux)
 	return mux
+}
+
+// gatewayConfigFromEnv builds the gateway client's config from environment
+// variables. ROOMS_GATEWAY_BASE_URL and ROOMS_GATEWAY_CREDENTIAL are
+// required — gateway.New rejects a config missing either, since the base URL
+// and credential must come from configuration and never be hardcoded
+// (AGENTS.md invariant #4 covers the credential). ROOMS_GATEWAY_TIMEOUT is
+// optional and bounds a single proxied call; an unset or invalid value falls
+// back to gateway.DefaultTimeout.
+func gatewayConfigFromEnv(logger *slog.Logger) gateway.Config {
+	cfg := gateway.Config{
+		BaseURL:    os.Getenv("ROOMS_GATEWAY_BASE_URL"),
+		Credential: os.Getenv("ROOMS_GATEWAY_CREDENTIAL"),
+	}
+	if v := os.Getenv("ROOMS_GATEWAY_TIMEOUT"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			logger.Warn("rooms: invalid ROOMS_GATEWAY_TIMEOUT, using default", "value", v, "err", err)
+		} else {
+			cfg.Timeout = d
+		}
+	}
+	return cfg
 }
 
 // healthz reports liveness only: the process answered. Readiness gains meaning

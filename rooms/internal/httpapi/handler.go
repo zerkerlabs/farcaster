@@ -5,6 +5,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -13,17 +14,28 @@ import (
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
+// GatewayCaller is the subset of *gateway.Client the message handlers need:
+// issuing one proxied call to a member's agent through the Farcaster
+// gateway. *gateway.Client satisfies this interface.
+type GatewayCaller interface {
+	Call(ctx context.Context, agentID string, body []byte) error
+}
+
 // Handler holds the shared dependencies for the Rooms HTTP handlers.
 type Handler struct {
 	store       *room.Store
 	memoryStore memory.Store
+	gateway     GatewayCaller
 	logger      *slog.Logger
 }
 
 // NewHandler returns a Handler backed by store, logging to logger. memoryStore
 // is the seam onboarding a member reads from (rooms/internal/memory).
-func NewHandler(store *room.Store, memoryStore memory.Store, logger *slog.Logger) *Handler {
-	return &Handler{store: store, memoryStore: memoryStore, logger: logger}
+// gatewayClient delivers a message addressed to another member as a proxied
+// call to that member's agent (rooms/internal/gateway) — every agent-to-agent
+// call goes through it, never direct.
+func NewHandler(store *room.Store, memoryStore memory.Store, gatewayClient GatewayCaller, logger *slog.Logger) *Handler {
+	return &Handler{store: store, memoryStore: memoryStore, gateway: gatewayClient, logger: logger}
 }
 
 // RegisterRoutes mounts the four v1 room routes onto mux.
