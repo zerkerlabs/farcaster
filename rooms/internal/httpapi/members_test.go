@@ -2,12 +2,27 @@ package httpapi_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
+
+// erroringMemoryStore is a memory.Store whose Read always fails, used to
+// exercise onboarding's fail-closed path: a memory backend error must refuse
+// the join rather than seat a member with an empty context.
+type erroringMemoryStore struct{}
+
+func (erroringMemoryStore) Read(ctx context.Context, scope memory.Scope) ([]memory.Entry, error) {
+	return nil, errors.New("memory backend unavailable")
+}
+
+func (erroringMemoryStore) Append(ctx context.Context, scope memory.Scope, content string) (memory.Entry, error) {
+	return memory.Entry{}, errors.New("memory backend unavailable")
+}
 
 func TestHandleAddMember(t *testing.T) {
 	t.Parallel()
@@ -15,10 +30,12 @@ func TestHandleAddMember(t *testing.T) {
 	tests := []struct {
 		name       string
 		setup      func(t *testing.T, s *room.Store) string // returns the room ID to target
+		memStore   memory.Store                             // nil uses a fresh memory.Fake
 		body       any
 		lookupAs   string
 		wantStatus int
 		checkBody  func(t *testing.T, body map[string]any)
+		afterCheck func(t *testing.T, s *room.Store, roomID string)
 	}{
 		{
 			name: "201 seats an agent",
@@ -106,13 +123,102 @@ func TestHandleAddMember(t *testing.T) {
 			lookupAs:   "",
 			wantStatus: http.StatusUnauthorized,
 		},
+		{
+			name: "201 onboards a member from memory entries plus documents",
+			setup: func(t *testing.T, s *room.Store) string {
+				t.Helper()
+				return mustCreateRoom(t, s, "goal").ID
+			},
+			memStore: func() memory.Store {
+				f := memory.NewFake()
+				scope := memory.Scope{TenantID: tenantA, AgentID: "agt_1"}
+				if _, err := f.Append(context.Background(), scope, "prior fact 1"); err != nil {
+					panic(err)
+				}
+				if _, err := f.Append(context.Background(), scope, "prior fact 2"); err != nil {
+					panic(err)
+				}
+				return f
+			}(),
+			body:       map[string]any{"agent_id": "agt_1", "documents": []string{"doc A", "doc B"}},
+			lookupAs:   tenantA,
+			wantStatus: http.StatusCreated,
+			afterCheck: func(t *testing.T, s *room.Store, roomID string) {
+				t.Helper()
+				got, err := s.GetRoom(context.Background(), tenantA, roomID)
+				if err != nil {
+					t.Fatalf("GetRoom: %v", err)
+				}
+				if len(got.Members) != 1 {
+					t.Fatalf("Members = %v, want a single member", got.Members)
+				}
+				want := []string{"prior fact 1", "prior fact 2", "doc A", "doc B"}
+				got0 := got.Members[0].StartingContext
+				if len(got0) != len(want) {
+					t.Fatalf("StartingContext = %v, want %v", got0, want)
+				}
+				for i := range want {
+					if got0[i] != want[i] {
+						t.Errorf("StartingContext[%d] = %q, want %q", i, got0[i], want[i])
+					}
+				}
+			},
+		},
+		{
+			name: "201 seats a member with zero documents",
+			setup: func(t *testing.T, s *room.Store) string {
+				t.Helper()
+				return mustCreateRoom(t, s, "goal").ID
+			},
+			body:       map[string]any{"agent_id": "agt_1"},
+			lookupAs:   tenantA,
+			wantStatus: http.StatusCreated,
+			afterCheck: func(t *testing.T, s *room.Store, roomID string) {
+				t.Helper()
+				got, err := s.GetRoom(context.Background(), tenantA, roomID)
+				if err != nil {
+					t.Fatalf("GetRoom: %v", err)
+				}
+				if len(got.Members) != 1 {
+					t.Fatalf("Members = %v, want a single member", got.Members)
+				}
+				if len(got.Members[0].StartingContext) != 0 {
+					t.Errorf("StartingContext = %v, want empty", got.Members[0].StartingContext)
+				}
+			},
+		},
+		{
+			name: "500 refuses the join when the memory read fails; no member is added",
+			setup: func(t *testing.T, s *room.Store) string {
+				t.Helper()
+				return mustCreateRoom(t, s, "goal").ID
+			},
+			memStore:   erroringMemoryStore{},
+			body:       map[string]any{"agent_id": "agt_1"},
+			lookupAs:   tenantA,
+			wantStatus: http.StatusInternalServerError,
+			afterCheck: func(t *testing.T, s *room.Store, roomID string) {
+				t.Helper()
+				got, err := s.GetRoom(context.Background(), tenantA, roomID)
+				if err != nil {
+					t.Fatalf("GetRoom: %v", err)
+				}
+				if len(got.Members) != 0 {
+					t.Errorf("Members = %v, want empty after a refused join", got.Members)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			mux, store := newMux(t)
+			memStore := tt.memStore
+			if memStore == nil {
+				memStore = memory.NewFake()
+			}
+			mux, store := newMuxWithMemory(t, memStore)
 			roomID := tt.setup(t, store)
 
 			req := requestAs(t, http.MethodPost, "/v1/rooms/"+roomID+"/members", tt.body, tt.lookupAs)
@@ -124,6 +230,9 @@ func TestHandleAddMember(t *testing.T) {
 			}
 			if tt.checkBody != nil {
 				tt.checkBody(t, decodeBody(t, rec))
+			}
+			if tt.afterCheck != nil {
+				tt.afterCheck(t, store, roomID)
 			}
 		})
 	}

@@ -81,6 +81,11 @@ type Member struct {
 	ID       string
 	AgentID  string // the agt_-prefixed gateway agent this member represents
 	JoinedAt time.Time
+	// StartingContext is the onboarding context the member joined with: its
+	// memory scope's entries combined with any documents supplied on the
+	// add-member request (rooms/internal/memory). Assembling it is the
+	// caller's job — the store only carries whatever it is given.
+	StartingContext []string
 }
 
 // Message is one member's contribution to a room.

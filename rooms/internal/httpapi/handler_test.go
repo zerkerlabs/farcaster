@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
+	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 	"github.com/zerkerlabs/farcaster/rooms/internal/tenant"
 )
@@ -21,11 +22,18 @@ const (
 )
 
 // newMux returns a mux serving the four v1 room routes, backed by a fresh
-// in-memory store.
+// in-memory room store and a fresh in-memory memory store.
 func newMux(t *testing.T) (*http.ServeMux, *room.Store) {
 	t.Helper()
+	return newMuxWithMemory(t, memory.NewFake())
+}
+
+// newMuxWithMemory is newMux with a caller-supplied memory.Store, for tests
+// that need to seed onboarding entries or exercise a failing memory backend.
+func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (*http.ServeMux, *room.Store) {
+	t.Helper()
 	store := room.NewStore()
-	h := httpapi.NewHandler(store, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := httpapi.NewHandler(store, memoryStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	return mux, store
@@ -80,7 +88,7 @@ func mustCreateRoom(t *testing.T, s *room.Store, goal string) *room.Room {
 
 func mustAddMember(t *testing.T, s *room.Store, roomID, agentID string) *room.Member {
 	t.Helper()
-	m, err := s.AddMember(context.Background(), tenantA, roomID, agentID, tenantA)
+	m, err := s.AddMember(context.Background(), tenantA, roomID, agentID, tenantA, nil)
 	if err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}

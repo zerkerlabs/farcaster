@@ -97,12 +97,15 @@ func (s *Store) ListRooms(ctx context.Context, tenantID string) ([]*Room, error)
 	return rooms, nil
 }
 
-// AddMember seats an agent in a room. tenantID scopes the room lookup — it
+// AddMember seats an agent in a room, carrying startingContext — the
+// onboarding context the caller assembled from the agent's memory scope plus
+// any documents supplied on the request (rooms/internal/memory); pass nil for
+// a member with no onboarding context. tenantID scopes the room lookup — it
 // returns ErrNotFound if roomID does not exist or belongs to another tenant.
 // agentTenantID is the tenant that owns agentID; if it differs from the room's
 // tenant, the add is rejected with ErrTenantMismatch (rooms are single-tenant).
 // Returns ErrRoomTerminated if the room has already reached a terminal state.
-func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentTenantID string) (*Member, error) {
+func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentTenantID string, startingContext []string) (*Member, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -127,9 +130,10 @@ func (s *Store) AddMember(ctx context.Context, tenantID, roomID, agentID, agentT
 	}
 
 	m := &Member{
-		ID:       id,
-		AgentID:  agentID,
-		JoinedAt: time.Now().UTC(),
+		ID:              id,
+		AgentID:         agentID,
+		JoinedAt:        time.Now().UTC(),
+		StartingContext: append([]string(nil), startingContext...),
 	}
 	r.Members = append(r.Members, m)
 	s.appendEvent(r, EventMemberJoined, MemberJoinedPayload{Member: m})
@@ -344,6 +348,9 @@ func cloneRoom(r *Room) *Room {
 
 func cloneMember(m *Member) *Member {
 	c := *m
+	if m.StartingContext != nil {
+		c.StartingContext = append([]string(nil), m.StartingContext...)
+	}
 	return &c
 }
 
