@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
@@ -26,10 +27,10 @@ const (
 // pretending to deliver, so an unexpected gateway call doesn't go unnoticed.
 type unreachableGateway struct{ t *testing.T }
 
-func (g unreachableGateway) Call(ctx context.Context, agentID string, body []byte) error {
+func (g unreachableGateway) Call(ctx context.Context, agentID string, body []byte) (*gateway.Result, error) {
 	g.t.Helper()
 	g.t.Fatalf("unexpected gateway call to %q", agentID)
-	return nil
+	return nil, nil
 }
 
 // newMux returns a mux serving the four v1 room routes, backed by a fresh

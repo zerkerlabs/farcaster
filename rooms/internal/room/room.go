@@ -116,6 +116,11 @@ const (
 	// event is appended for a message that failed delivery, so a failed call
 	// can never be mistaken for one that reached its recipient.
 	EventDeliveryFailed EventKind = "delivery_failed"
+	// EventMessageDelivered records that a message addressed to another member
+	// was confirmed delivered as a proxied call to that member's agent. It
+	// carries the gateway's invocation ID so a room's history can be
+	// reconciled against the gateway's own invocation record.
+	EventMessageDelivered EventKind = "message_delivered"
 )
 
 // Event is one entry in a room's append-only log. Every membership change,
@@ -143,6 +148,16 @@ type MessagePostedPayload struct {
 // recording which terminal state the room reached.
 type RoomTerminatedPayload struct {
 	State State
+}
+
+// MessageDeliveredPayload is the Payload of an EventMessageDelivered event.
+type MessageDeliveredPayload struct {
+	FromMemberID string
+	ToMemberID   string
+	ToAgentID    string
+	// InvocationID is the gateway's identifier for the proxied call, the join
+	// key between this room's history and the gateway's invocation record.
+	InvocationID string
 }
 
 // DeliveryFailedPayload is the Payload of an EventDeliveryFailed event. Class

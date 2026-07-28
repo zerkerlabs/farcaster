@@ -10,15 +10,20 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
 // GatewayCaller is the subset of *gateway.Client the message handlers need:
-// issuing one proxied call to a member's agent through the Farcaster
-// gateway. *gateway.Client satisfies this interface.
+// delivering one proxied call to a member's agent through the Farcaster
+// gateway and confirming it actually completed. *gateway.Client satisfies this
+// interface.
+//
+// Call returns only once delivery is confirmed — the gateway's proxy is
+// asynchronous, so an accepted call is not yet a delivered one.
 type GatewayCaller interface {
-	Call(ctx context.Context, agentID string, body []byte) error
+	Call(ctx context.Context, agentID string, body []byte) (*gateway.Result, error)
 }
 
 // Handler holds the shared dependencies for the Rooms HTTP handlers.

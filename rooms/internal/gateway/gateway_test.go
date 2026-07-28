@@ -2,11 +2,13 @@ package gateway_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,6 +17,105 @@ import (
 )
 
 const testCredential = "s3cr3t-credential-value" //nolint:gosec // test fixture, not a real credential
+
+// fakeGateway models the gateway's ACTUAL proxy contract: POST accepts the
+// call and returns 202 with an invocation_id, and the real outcome is only
+// available by polling the invocation.
+//
+// The tests this replaced used a server that answered 202 to everything and
+// served no invocation at all — which is why a client that treated 202 as
+// delivery passed them. A fake that cannot express "accepted then failed"
+// cannot catch the bug that matters here.
+type fakeGateway struct {
+	// statuses is the sequence of invocation states returned by successive
+	// polls; the last entry repeats once exhausted.
+	statuses []string
+	// upstreamStatus is reported alongside a terminal state; 0 omits it.
+	upstreamStatus int
+	// acceptStatus overrides the POST response status (default 202).
+	acceptStatus int
+	// omitInvocationID accepts the call without returning a handle to poll.
+	omitInvocationID bool
+
+	mu        sync.Mutex
+	posts     int32
+	polls     int32
+	lastPath  string
+	lastAuth  string
+	lastBody  []byte
+	pollPaths []string
+}
+
+func (f *fakeGateway) server(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+
+		if r.Method == http.MethodPost {
+			atomic.AddInt32(&f.posts, 1)
+			f.lastPath = r.URL.Path
+			f.lastAuth = r.Header.Get("Authorization")
+			f.lastBody, _ = io.ReadAll(r.Body)
+
+			status := f.acceptStatus
+			if status == 0 {
+				status = http.StatusAccepted
+			}
+			if status < 200 || status >= 300 {
+				w.WriteHeader(status)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			if f.omitInvocationID {
+				_, _ = w.Write([]byte(`{}`))
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"invocation_id": "inv_abc123"})
+			return
+		}
+
+		n := atomic.AddInt32(&f.polls, 1)
+		f.pollPaths = append(f.pollPaths, r.URL.Path)
+
+		idx := int(n) - 1
+		if idx >= len(f.statuses) {
+			idx = len(f.statuses) - 1
+		}
+		body := map[string]any{"status": f.statuses[idx]}
+		if f.upstreamStatus != 0 {
+			body["upstream_status"] = f.upstreamStatus
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func fastClient(t *testing.T, baseURL string) *gateway.Client {
+	t.Helper()
+	c, err := gateway.New(gateway.Config{
+		BaseURL:        baseURL,
+		Credential:     testCredential,
+		ConfirmTimeout: 2 * time.Second,
+		PollInterval:   time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	return c
+}
+
+func classOf(t *testing.T, err error) gateway.ErrorClass {
+	t.Helper()
+	var ce *gateway.CallError
+	if !errors.As(err, &ce) {
+		t.Fatalf("err = %v (%T), want *gateway.CallError", err, err)
+	}
+	return ce.Class
+}
 
 func TestNew_RequiresBaseURLAndCredential(t *testing.T) {
 	t.Parallel()
@@ -42,210 +143,225 @@ func TestNew_RequiresBaseURLAndCredential(t *testing.T) {
 	}
 }
 
-func TestClient_Call_Success(t *testing.T) {
+// A call is delivered only once its invocation reports succeeded — and the
+// client must poll to find that out.
+func TestClient_Call_ConfirmsViaPolling(t *testing.T) {
 	t.Parallel()
 
-	var gotPath, gotMethod, gotAuth, gotContentType string
-	var gotBody []byte
-	var requestCount int32
+	f := &fakeGateway{statuses: []string{"pending", "running", "succeeded"}, upstreamStatus: 200}
+	srv := f.server(t)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&requestCount, 1)
-		gotMethod = r.Method
-		gotPath = r.URL.Path
-		gotAuth = r.Header.Get("Authorization")
-		gotContentType = r.Header.Get("Content-Type")
-		gotBody, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer srv.Close()
-
-	c, err := gateway.New(gateway.Config{BaseURL: srv.URL, Credential: testCredential})
+	result, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{"body":"hi"}`))
 	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	if err := c.Call(context.Background(), "agt_recipient", []byte(`{"body":"hi"}`)); err != nil {
 		t.Fatalf("Call: %v", err)
 	}
 
-	if got := atomic.LoadInt32(&requestCount); got != 1 {
-		t.Fatalf("request count = %d, want exactly 1", got)
+	if got := atomic.LoadInt32(&f.posts); got != 1 {
+		t.Errorf("POST count = %d, want exactly 1", got)
 	}
-	if gotMethod != http.MethodPost {
-		t.Errorf("method = %q, want POST", gotMethod)
+	if got := atomic.LoadInt32(&f.polls); got < 3 {
+		t.Errorf("poll count = %d, want at least 3 (pending, running, succeeded)", got)
 	}
-	if gotPath != "/v1/proxy/agt_recipient" {
-		t.Errorf("path = %q, want %q", gotPath, "/v1/proxy/agt_recipient")
+	if f.lastPath != "/v1/proxy/agt_recipient" {
+		t.Errorf("POST path = %q, want %q", f.lastPath, "/v1/proxy/agt_recipient")
 	}
-	if gotAuth != "Bearer "+testCredential {
-		t.Errorf("Authorization = %q, want %q", gotAuth, "Bearer "+testCredential)
+	if f.lastAuth != "Bearer "+testCredential {
+		t.Errorf("Authorization = %q, want the configured credential", f.lastAuth)
 	}
-	if gotContentType != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", gotContentType)
+	if string(f.lastBody) != `{"body":"hi"}` {
+		t.Errorf("body = %q, want %q", f.lastBody, `{"body":"hi"}`)
 	}
-	if string(gotBody) != `{"body":"hi"}` {
-		t.Errorf("body = %q, want %q", gotBody, `{"body":"hi"}`)
+	if want := "/v1/proxy/agt_recipient/invocations/inv_abc123"; f.pollPaths[0] != want {
+		t.Errorf("poll path = %q, want %q", f.pollPaths[0], want)
+	}
+	if result.InvocationID != "inv_abc123" {
+		t.Errorf("InvocationID = %q, want %q", result.InvocationID, "inv_abc123")
+	}
+	if result.UpstreamStatus != 200 {
+		t.Errorf("UpstreamStatus = %d, want 200", result.UpstreamStatus)
 	}
 }
 
-func TestClient_Call_ClassifiesCallerError(t *testing.T) {
+// The regression this whole change exists for: the gateway accepts the call
+// with a 202 and the invocation then FAILS. Treating the 202 as success
+// reports the dominant real-world failure — the recipient erroring, being
+// unreachable, or timing out — as a delivered message.
+func TestClient_Call_AcceptedThenFailedIsNotDelivered(t *testing.T) {
 	t.Parallel()
 
-	for _, status := range []int{http.StatusBadRequest, http.StatusNotFound, http.StatusUnprocessableEntity, http.StatusTooManyRequests} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
+	f := &fakeGateway{statuses: []string{"running", "failed"}, upstreamStatus: 502}
+	srv := f.server(t)
+
+	result, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	if err == nil {
+		t.Fatal("err = nil for a failed invocation — an accepted call was reported as delivered")
+	}
+	if result != nil {
+		t.Errorf("result = %+v, want nil on failure", result)
+	}
+	if got := classOf(t, err); got != gateway.ErrorClassUpstreamFailure {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUpstreamFailure)
+	}
+}
+
+// The recipient's own 4xx is the caller's problem, not the gateway's.
+func TestClient_Call_FailedWithRecipient4xxIsCallerError(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeGateway{statuses: []string{"failed"}, upstreamStatus: 422}
+	srv := f.server(t)
+
+	_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	if got := classOf(t, err); got != gateway.ErrorClassCallerError {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassCallerError)
+	}
+}
+
+// A synchronous rejection of the POST never reaches the polling stage.
+func TestClient_Call_ClassifiesSynchronousRejection(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		status int
+		want   gateway.ErrorClass
+	}{
+		{http.StatusBadRequest, gateway.ErrorClassCallerError},
+		{http.StatusNotFound, gateway.ErrorClassCallerError},
+		{http.StatusUnprocessableEntity, gateway.ErrorClassCallerError},
+		{http.StatusTooManyRequests, gateway.ErrorClassCallerError},
+		{http.StatusInternalServerError, gateway.ErrorClassUpstreamFailure},
+		{http.StatusBadGateway, gateway.ErrorClassUpstreamFailure},
+	}
+	for _, tt := range tests {
+		t.Run(http.StatusText(tt.status), func(t *testing.T) {
 			t.Parallel()
 
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(status)
-				_, _ = w.Write([]byte("internal detail that must not leak"))
-			}))
-			defer srv.Close()
+			f := &fakeGateway{acceptStatus: tt.status, statuses: []string{"succeeded"}}
+			srv := f.server(t)
 
-			c, err := gateway.New(gateway.Config{BaseURL: srv.URL, Credential: testCredential})
-			if err != nil {
-				t.Fatalf("New: %v", err)
+			_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+			if got := classOf(t, err); got != tt.want {
+				t.Errorf("class = %q, want %q", got, tt.want)
 			}
-
-			err = c.Call(context.Background(), "agt_x", nil)
-			var callErr *gateway.CallError
-			if !errors.As(err, &callErr) {
-				t.Fatalf("err = %v, want *gateway.CallError", err)
-			}
-			if callErr.Class != gateway.ErrorClassCallerError {
-				t.Errorf("Class = %q, want %q", callErr.Class, gateway.ErrorClassCallerError)
-			}
-			if callErr.StatusCode != status {
-				t.Errorf("StatusCode = %d, want %d", callErr.StatusCode, status)
-			}
-			if strings.Contains(err.Error(), "internal detail") {
-				t.Errorf("err.Error() = %q, must not contain the raw upstream body", err.Error())
+			if got := atomic.LoadInt32(&f.polls); got != 0 {
+				t.Errorf("poll count = %d, want 0 — a rejected call has no invocation to poll", got)
 			}
 		})
 	}
 }
 
-func TestClient_Call_ClassifiesUpstreamFailure(t *testing.T) {
+// An invocation that never reaches a terminal state is UNKNOWN, not delivered
+// and not failed. It may still have reached the recipient, so it gets its own
+// class rather than being folded into either certainty.
+func TestClient_Call_NeverTerminalIsUnconfirmed(t *testing.T) {
 	t.Parallel()
 
-	for _, status := range []int{http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
-			t.Parallel()
-
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(status)
-			}))
-			defer srv.Close()
-
-			c, err := gateway.New(gateway.Config{BaseURL: srv.URL, Credential: testCredential})
-			if err != nil {
-				t.Fatalf("New: %v", err)
-			}
-
-			err = c.Call(context.Background(), "agt_x", nil)
-			var callErr *gateway.CallError
-			if !errors.As(err, &callErr) {
-				t.Fatalf("err = %v, want *gateway.CallError", err)
-			}
-			if callErr.Class != gateway.ErrorClassUpstreamFailure {
-				t.Errorf("Class = %q, want %q", callErr.Class, gateway.ErrorClassUpstreamFailure)
-			}
-			if callErr.StatusCode != status {
-				t.Errorf("StatusCode = %d, want %d", callErr.StatusCode, status)
-			}
-		})
-	}
-}
-
-// TestClient_Call_TimeoutClassifiesAsUpstreamFailure verifies that a gateway
-// which never responds cannot block a call indefinitely: Client enforces its
-// own request timeout independent of the caller's context.
-func TestClient_Call_TimeoutClassifiesAsUpstreamFailure(t *testing.T) {
-	t.Parallel()
-
-	unblock := make(chan struct{})
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-unblock // released below, after Client.Call has already timed out
-	}))
-	// srv.Close waits for the in-flight handler to return, so unblock must be
-	// closed first: defers run LIFO, so declaring this second means it runs
-	// before srv.Close (declared first).
-	defer srv.Close()
-	defer close(unblock)
+	f := &fakeGateway{statuses: []string{"running"}}
+	srv := f.server(t)
 
 	c, err := gateway.New(gateway.Config{
-		BaseURL:    srv.URL,
-		Credential: testCredential,
-		Timeout:    50 * time.Millisecond,
+		BaseURL:        srv.URL,
+		Credential:     testCredential,
+		ConfirmTimeout: 60 * time.Millisecond,
+		PollInterval:   time.Millisecond,
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 
-	start := time.Now()
-	err = c.Call(context.Background(), "agt_slow", nil)
-	elapsed := time.Since(start)
-
-	if err == nil {
-		t.Fatal("err = nil, want a timeout error")
+	result, callErr := c.Call(context.Background(), "agt_recipient", []byte(`{}`))
+	if callErr == nil {
+		t.Fatal("err = nil — an unconfirmed call was reported as delivered")
 	}
-	if elapsed > 2*time.Second {
-		t.Errorf("Call took %s, want it bounded by the configured timeout", elapsed)
+	if result != nil {
+		t.Errorf("result = %+v, want nil", result)
 	}
-	var callErr *gateway.CallError
-	if !errors.As(err, &callErr) {
-		t.Fatalf("err = %v, want *gateway.CallError", err)
-	}
-	if callErr.Class != gateway.ErrorClassUpstreamFailure {
-		t.Errorf("Class = %q, want %q", callErr.Class, gateway.ErrorClassUpstreamFailure)
+	if got := classOf(t, callErr); got != gateway.ErrorClassUnconfirmed {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUnconfirmed)
 	}
 }
 
-// TestClient_Call_CredentialNeverLeaks verifies that the configured
-// credential never appears in a returned error, regardless of outcome
+// Accepted with no invocation_id leaves nothing to confirm against. The call
+// may well run to completion, so it is unconfirmed rather than failed — and
+// must not be reported as delivered.
+func TestClient_Call_AcceptedWithoutInvocationIDIsUnconfirmed(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeGateway{omitInvocationID: true, statuses: []string{"succeeded"}}
+	srv := f.server(t)
+
+	_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	if got := classOf(t, err); got != gateway.ErrorClassUnconfirmed {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUnconfirmed)
+	}
+}
+
+// A poll that transiently fails is not a delivery failure — the invocation is
+// still running server-side — so the client keeps trying until it resolves.
+func TestClient_Call_TransientPollFailureIsRetried(t *testing.T) {
+	t.Parallel()
+
+	var polls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"invocation_id":"inv_abc123"}`))
+			return
+		}
+		if atomic.AddInt32(&polls, 1) <= 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"succeeded","upstream_status":200}`))
+	}))
+	defer srv.Close()
+
+	if _, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`)); err != nil {
+		t.Fatalf("Call: %v — transient poll failures should be retried, not treated as delivery failures", err)
+	}
+}
+
+func TestClient_Call_UnreachableGatewayIsUpstreamFailure(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	url := srv.URL
+	srv.Close() // nothing is listening now
+
+	c, err := gateway.New(gateway.Config{BaseURL: url, Credential: testCredential})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	_, callErr := c.Call(context.Background(), "agt_recipient", []byte(`{}`))
+	if got := classOf(t, callErr); got != gateway.ErrorClassUpstreamFailure {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUpstreamFailure)
+	}
+}
+
+// The credential must never surface in an error a caller could log or return
 // (AGENTS.md invariant #4).
 func TestClient_Call_CredentialNeverLeaks(t *testing.T) {
 	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-
-	c, err := gateway.New(gateway.Config{BaseURL: srv.URL, Credential: testCredential})
-	if err != nil {
-		t.Fatalf("New: %v", err)
+	cases := map[string]*fakeGateway{
+		"synchronous rejection": {acceptStatus: http.StatusForbidden},
+		"failed invocation":     {statuses: []string{"failed"}, upstreamStatus: 500},
+		"unconfirmed":           {omitInvocationID: true},
 	}
+	for name, f := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	err = c.Call(context.Background(), "agt_x", nil)
-	if err == nil {
-		t.Fatal("err = nil, want an error")
-	}
-	if strings.Contains(err.Error(), testCredential) {
-		t.Errorf("err.Error() = %q, must never contain the credential", err.Error())
-	}
-}
-
-func TestClient_Call_UnreachableGatewayClassifiesAsUpstreamFailure(t *testing.T) {
-	t.Parallel()
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	srv.Close() // closed before use: connections to it fail
-
-	c, err := gateway.New(gateway.Config{BaseURL: srv.URL, Credential: testCredential})
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	err = c.Call(context.Background(), "agt_x", nil)
-	var callErr *gateway.CallError
-	if !errors.As(err, &callErr) {
-		t.Fatalf("err = %v, want *gateway.CallError", err)
-	}
-	if callErr.Class != gateway.ErrorClassUpstreamFailure {
-		t.Errorf("Class = %q, want %q", callErr.Class, gateway.ErrorClassUpstreamFailure)
+			srv := f.server(t)
+			_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+			if err == nil {
+				t.Fatal("err = nil, want an error")
+			}
+			if strings.Contains(err.Error(), testCredential) {
+				t.Errorf("error %q contains the credential", err.Error())
+			}
+		})
 	}
 }

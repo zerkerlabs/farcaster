@@ -48,7 +48,19 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// An addressed message is delivered as a proxied call to the recipient's
 	// agent before it is ever recorded, so a failed call can never look like
 	// a delivered message.
-	if req.ToMemberID != "" {
+	//
+	// But delivery only happens once the request is known to be valid. The
+	// gateway call is a REAL side effect on another member's agent, with
+	// policy and payment consequences; firing it for a terminated room, an
+	// out-of-turns room, or a spoofed sender — and only then having
+	// AppendMessage reject the request — would mean a live call that the room
+	// has no record of at all.
+	//
+	// On a failed pre-check, fall through with no delivery: AppendMessage
+	// below produces the authoritative error and any state transition it
+	// implies (exceeding the budget abandons the room), so the outcome is
+	// identical to an unaddressed message minus the call.
+	if req.ToMemberID != "" && h.store.CheckCanPost(r.Context(), tenantID, roomID, req.MemberID) == nil {
 		if !h.deliverToMember(w, r, tenantID, roomID, req) {
 			return
 		}
@@ -76,19 +88,33 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // deliveredMessage is the payload a proxied call carries to the recipient
-// agent: just the message body. Rooms does not interpret or transform it —
-// the gateway and the recipient agent are what act on it.
+// agent. Rooms does not interpret or transform the body — the gateway and the
+// recipient agent are what act on it — but it does carry the room and sender
+// alongside it so the recipient knows which conversation the message belongs
+// to, and so a delivery can be correlated with the room's event log.
 type deliveredMessage struct {
-	Body string `json:"body"`
+	RoomID       string `json:"room_id"`
+	FromMemberID string `json:"from_member_id"`
+	ToMemberID   string `json:"to_member_id"`
+	Body         string `json:"body"`
 }
 
 // deliverToMember resolves req.ToMemberID to its agent and delivers req.Body
 // as a single proxied call through the gateway. It writes an error response
-// and returns false on any failure: an unknown room/recipient, or a gateway
-// call that did not succeed (recorded as an EventDeliveryFailed event so the
-// failure is never silently indistinguishable from a delivered message).
-// Returns true only once the call has succeeded, at which point the caller
-// proceeds to record the message itself.
+// and returns false on any failure: an unknown room/recipient, a call the
+// gateway rejected or that failed at the recipient, or one whose outcome could
+// not be confirmed — each recorded as an EventDeliveryFailed event carrying
+// its class, so a failed or unconfirmed call is never indistinguishable from a
+// delivered one.
+//
+// Returns true only once delivery is CONFIRMED, at which point the caller
+// proceeds to record the message itself. The gateway's proxy is asynchronous,
+// so the client polls the invocation to completion rather than trusting the
+// 202 that accepts it.
+//
+// Callers must establish that the message would be accepted (see
+// Store.CheckCanPost) before calling this — it performs a real side effect on
+// another member's agent.
 func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenantID, roomID string, req postMessageRequest) bool {
 	toAgentID, err := h.store.MemberAgentID(r.Context(), tenantID, roomID, req.ToMemberID)
 	if err != nil {
@@ -104,15 +130,26 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 		return false
 	}
 
-	payload, err := json.Marshal(deliveredMessage{Body: req.Body})
+	payload, err := json.Marshal(deliveredMessage{
+		RoomID:       roomID,
+		FromMemberID: req.MemberID,
+		ToMemberID:   req.ToMemberID,
+		Body:         req.Body,
+	})
 	if err != nil {
 		h.logger.Error("post message: marshal delivered payload", "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return false
 	}
 
-	callErr := h.gateway.Call(r.Context(), toAgentID, payload)
+	result, callErr := h.gateway.Call(r.Context(), toAgentID, payload)
 	if callErr == nil {
+		// Confirmed delivered. Record the gateway's invocation ID so this
+		// room's transcript can be reconciled against the gateway's own
+		// invocation record when debugging.
+		if err := h.store.RecordDelivery(r.Context(), tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, result.InvocationID); err != nil {
+			h.logger.Error("post message: record delivery", "err", err)
+		}
 		return true
 	}
 
@@ -128,9 +165,15 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 	// The gateway's response is classified, never forwarded: a non-2xx body
 	// must never leak into the room transcript or this API response
 	// (AGENTS.md invariant #3).
-	if class == gateway.ErrorClassCallerError {
+	switch class {
+	case gateway.ErrorClassCallerError:
 		writeError(w, http.StatusUnprocessableEntity, "message could not be delivered: the gateway rejected the call")
-	} else {
+	case gateway.ErrorClassUnconfirmed:
+		// The call was accepted but its outcome is unknown. Reported
+		// distinctly from a failure: it may have reached the recipient, so the
+		// caller must not assume it can safely retry as if nothing happened.
+		writeError(w, http.StatusGatewayTimeout, "message delivery could not be confirmed: the call was accepted but did not complete in time")
+	default:
 		writeError(w, http.StatusBadGateway, "message could not be delivered: gateway upstream failure")
 	}
 	return false

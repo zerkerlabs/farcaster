@@ -191,6 +191,45 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 	return cloneMessage(m), nil
 }
 
+// CheckCanPost reports whether memberID may post a message to a room right
+// now, running exactly the checks AppendMessage runs — room exists and is
+// visible to this tenant, room is open, memberID is seated in it, and the turn
+// budget has room for one more turn — WITHOUT mutating anything.
+//
+// It exists so a caller that has a side effect to perform before recording a
+// message (delivering it through the gateway, say) can find out first whether
+// the message would be accepted at all. Firing that side effect and only then
+// discovering the room is terminated means the side effect happened for a
+// request that was never valid.
+//
+// Deliberately read-only: unlike AppendMessage it does not abandon a room that
+// is out of turns. The authoritative transition stays in AppendMessage, so
+// there is exactly one place that mutates state, and a pre-check can never
+// terminate a room as a side effect of asking a question.
+func (s *Store) CheckCanPost(ctx context.Context, tenantID, roomID, memberID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return err
+	}
+	if r.State != StateOpen {
+		return ErrRoomTerminated
+	}
+	if !hasMember(r, memberID) {
+		return ErrMemberNotFound
+	}
+	if turnsConsumed(r)+1 > r.TurnBudget {
+		return ErrTurnBudgetExceeded
+	}
+	return nil
+}
+
 // CompleteRoom explicitly marks a room's goal as met. Returns ErrNotFound if
 // roomID does not exist or belongs to a different tenant, and
 // ErrRoomTerminated if the room has already reached a terminal state.
@@ -266,6 +305,37 @@ func (s *Store) RecordDeliveryFailure(ctx context.Context, tenantID, roomID, fro
 		ToMemberID:   toMemberID,
 		ToAgentID:    toAgentID,
 		Class:        class,
+	})
+	return nil
+}
+
+// RecordDelivery appends an EventMessageDelivered event recording that a
+// message from fromMemberID addressed to toMemberID was confirmed delivered as
+// a proxied call to toAgentID, carrying the gateway's invocationID so the room
+// history can be reconciled against the gateway's invocation record.
+//
+// It does not append the message itself — the caller does that — so a delivery
+// and the message it delivered stay separately attributable in the log.
+// Returns ErrNotFound if roomID does not exist or belongs to a different
+// tenant.
+func (s *Store) RecordDelivery(ctx context.Context, tenantID, roomID, fromMemberID, toMemberID, toAgentID, invocationID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r, err := s.find(tenantID, roomID)
+	if err != nil {
+		return err
+	}
+
+	s.appendEvent(r, EventMessageDelivered, MessageDeliveredPayload{
+		FromMemberID: fromMemberID,
+		ToMemberID:   toMemberID,
+		ToAgentID:    toAgentID,
+		InvocationID: invocationID,
 	})
 	return nil
 }

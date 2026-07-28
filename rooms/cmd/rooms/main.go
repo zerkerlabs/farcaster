@@ -108,23 +108,38 @@ func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux 
 // variables. ROOMS_GATEWAY_BASE_URL and ROOMS_GATEWAY_CREDENTIAL are
 // required — gateway.New rejects a config missing either, since the base URL
 // and credential must come from configuration and never be hardcoded
-// (AGENTS.md invariant #4 covers the credential). ROOMS_GATEWAY_TIMEOUT is
-// optional and bounds a single proxied call; an unset or invalid value falls
-// back to gateway.DefaultTimeout.
+// (AGENTS.md invariant #4 covers the credential).
+//
+// Two optional durations tune the call, and they bound different things.
+// ROOMS_GATEWAY_TIMEOUT bounds a single HTTP request. The proxy is
+// asynchronous, though — it returns 202 and runs the call server-side — so
+// ROOMS_GATEWAY_CONFIRM_TIMEOUT bounds how long Rooms will poll the resulting
+// invocation for a terminal state before reporting the outcome as unknown.
+// That is the one to raise for slow recipient agents; raising the request
+// timeout would not help. Unset or invalid values fall back to the package
+// defaults.
 func gatewayConfigFromEnv(logger *slog.Logger) gateway.Config {
-	cfg := gateway.Config{
-		BaseURL:    os.Getenv("ROOMS_GATEWAY_BASE_URL"),
-		Credential: os.Getenv("ROOMS_GATEWAY_CREDENTIAL"),
+	return gateway.Config{
+		BaseURL:        os.Getenv("ROOMS_GATEWAY_BASE_URL"),
+		Credential:     os.Getenv("ROOMS_GATEWAY_CREDENTIAL"),
+		Timeout:        durationFromEnv(logger, "ROOMS_GATEWAY_TIMEOUT"),
+		ConfirmTimeout: durationFromEnv(logger, "ROOMS_GATEWAY_CONFIRM_TIMEOUT"),
 	}
-	if v := os.Getenv("ROOMS_GATEWAY_TIMEOUT"); v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			logger.Warn("rooms: invalid ROOMS_GATEWAY_TIMEOUT, using default", "value", v, "err", err)
-		} else {
-			cfg.Timeout = d
-		}
+}
+
+// durationFromEnv reads an optional duration, returning zero (which the
+// gateway package reads as "use the default") when unset or unparseable.
+func durationFromEnv(logger *slog.Logger, key string) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0
 	}
-	return cfg
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		logger.Warn("rooms: invalid duration, using default", "var", key, "value", v, "err", err)
+		return 0
+	}
+	return d
 }
 
 // healthz reports liveness only: the process answered. Readiness gains meaning
