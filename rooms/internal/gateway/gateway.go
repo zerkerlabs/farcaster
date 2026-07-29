@@ -182,6 +182,19 @@ func New(cfg Config) (*Client, error) {
 	if cfg.BaseURL == "" {
 		return nil, errors.New("gateway: base URL is required")
 	}
+	// Checked here so a typo'd or schemeless URL fails at startup, where an
+	// operator sees it, rather than at the first delivery — which would fail as
+	// an upstream error and read like the gateway was down.
+	parsed, err := url.Parse(cfg.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("gateway: base URL is not a valid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("gateway: base URL must be http or https, got %q", cfg.BaseURL)
+	}
+	if parsed.Host == "" {
+		return nil, fmt.Errorf("gateway: base URL has no host: %q", cfg.BaseURL)
+	}
 	if cfg.Credential == "" {
 		return nil, errors.New("gateway: credential is required")
 	}
@@ -237,6 +250,20 @@ func (c *Client) Call(ctx context.Context, tenantID, agentID string, body []byte
 	if tenantID != c.tenant {
 		return nil, &CallError{Class: ErrorClassTenantMismatch}
 	}
+
+	// Deliberately detached from the caller's cancellation. Once the POST is
+	// out, the recipient's agent may already be running the call — and being
+	// billed for it — and the caller giving up does not undo any of that. If
+	// cancellation propagated here, a client hangup or a client-side timeout
+	// shorter than the confirmation budget would abandon the poll and report a
+	// call that is genuinely succeeding as unconfirmed, releasing its turn with
+	// the real outcome never recorded.
+	//
+	// Nothing is unbounded as a result: the request timeout bounds each HTTP
+	// call and confirm imposes its own deadline below, so Call still returns
+	// within Timeout + ConfirmTimeout. Values on ctx (trace IDs and the like)
+	// are preserved.
+	ctx = context.WithoutCancel(ctx)
 
 	invocationID, err := c.accept(ctx, agentID, body)
 	if err != nil {

@@ -177,12 +177,7 @@ func (s *Store) AppendMessage(ctx context.Context, tenantID, roomID, memberID, b
 		return nil, err
 	}
 	if err := s.canPost(r, memberID); err != nil {
-		// Running out of turns abandons the room rather than letting agents
-		// loop indefinitely. This is the one place that transition happens.
-		if errors.Is(err, ErrTurnBudgetExceeded) {
-			r.State = StateAbandoned
-			s.appendEvent(r, EventRoomTerminated, RoomTerminatedPayload{State: StateAbandoned})
-		}
+		s.abandonIfOutOfTurns(r, err)
 		return nil, err
 	}
 
@@ -232,9 +227,12 @@ type Reservation struct {
 // effect, and the turn is held across it, so a committed message cannot be
 // refused by anything that arrives in the meantime.
 //
-// Unlike AppendMessage it does NOT abandon a room that is out of turns: the
-// authoritative transition stays in AppendMessage, so reserving can never
-// terminate a room as a side effect of asking for a turn.
+// Reserving is how the addressed-message path acquires its turn, so it carries
+// the same consequences AppendMessage does: a room that is genuinely out of
+// turns is abandoned here too, rather than letting agents loop indefinitely.
+// A turn that is merely reserved by another delivery is different — that one
+// may still be released unspent — so it is refused with ErrTurnReserved and
+// leaves the room open.
 func (s *Store) ReserveTurn(ctx context.Context, tenantID, roomID string, msg PendingMessage) (*Reservation, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -253,6 +251,7 @@ func (s *Store) ReserveTurn(ctx context.Context, tenantID, roomID string, msg Pe
 		return nil, err
 	}
 	if err := s.canPost(r, msg.MemberID); err != nil {
+		s.abandonIfOutOfTurns(r, err)
 		return nil, err
 	}
 
@@ -355,6 +354,22 @@ func (s *Store) canPost(r *Room, memberID string) error {
 		return ErrTurnReserved
 	}
 	return nil
+}
+
+// abandonIfOutOfTurns terminates r when err says its turn budget is genuinely
+// spent — the rule that stops agents looping indefinitely. Both ways of
+// acquiring a turn (AppendMessage and ReserveTurn) share it, so a room is
+// abandoned by the same condition however the post arrived.
+//
+// ErrTurnReserved deliberately does not trigger it: those turns are held by
+// deliveries still in flight and may yet be released, so a call that never
+// landed must not be able to kill a room. Caller must hold s.mu (write lock).
+func (s *Store) abandonIfOutOfTurns(r *Room, err error) {
+	if !errors.Is(err, ErrTurnBudgetExceeded) {
+		return
+	}
+	r.State = StateAbandoned
+	s.appendEvent(r, EventRoomTerminated, RoomTerminatedPayload{State: StateAbandoned})
 }
 
 // dropPending removes res from the pending set, reporting whether it was still

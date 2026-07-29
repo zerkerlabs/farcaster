@@ -393,6 +393,74 @@ func TestHandlePostMessage_ConcurrentPostCannotStealAnInFlightTurn(t *testing.T)
 	}
 }
 
+// Every agent-to-agent call goes through the gateway — so a message addressed
+// to another member must never be recorded WITHOUT one. The tempting bug is a
+// refused addressed message quietly retrying as a plain broadcast: a turn
+// refused because another delivery holds it is transient, so the retry can
+// succeed, and the result is a 201 for a message that never left the room.
+//
+// Many senders contend for a single turn here, and every delivery fails, so the
+// only correct outcome is that nothing at all is recorded. Anything in the
+// transcript is a message that bypassed the gateway.
+func TestHandlePostMessage_AddressedMessageNeverDegradesToABroadcast(t *testing.T) {
+	t.Parallel()
+
+	gw := newCountingGateway(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"invocation_id":"inv_test"}`))
+	})
+	// Accepted, then failed: every reservation is released unspent, which is
+	// what frees the turn for the next contender to reserve — and, without the
+	// fix, for a refused one to retry as a broadcast.
+	gw.invocationStatus = "failed"
+	gw.upstreamStatus = 503
+
+	mux, store := newMuxWithMemoryAndGateway(t, nil, gw)
+	roomID, memberID := roomAndMember(t, store, 1)
+	recipient := mustAddMember(t, store, roomID, "agt_recipient")
+
+	// The window is the moment between a sender being refused the turn and its
+	// write: a delivery releasing its reservation right there is what used to
+	// let the write through. Sustained contention reaches it in a few hundred
+	// attempts — this budget is roughly ten times that, and costs ~100ms
+	// because a refused attempt never reaches the gateway.
+	const (
+		senders           = 12
+		attemptsPerSender = 500
+	)
+	var created atomic.Int32
+	var wg sync.WaitGroup
+	for range senders {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range attemptsPerSender {
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, requestAs(t, http.MethodPost, "/v1/rooms/"+roomID+"/messages",
+					map[string]any{"member_id": memberID, "to_member_id": recipient.ID, "body": "addressed"}, tenantA))
+				if rec.Code == http.StatusCreated {
+					created.Add(1)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := created.Load(); got != 0 {
+		t.Errorf("%d posts returned 201 though every delivery failed", got)
+	}
+
+	msgs, err := store.Messages(context.Background(), tenantA, roomID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	for _, m := range msgs {
+		t.Errorf("recorded message %+v (to_member_id %q) — every delivery failed, so this message reached the transcript without a proxied call",
+			m, m.ToMemberID)
+	}
+}
+
 // Rooms is multi-tenant; the gateway credential is not. A room whose tenant is
 // not the one this deployment's credential acts as must be refused locally —
 // sending the call anyway would have the gateway authorise, policy-check, and
@@ -502,6 +570,64 @@ func TestHandlePostMessage_UnconfirmedDeliveryEndsTheRequest(t *testing.T) {
 	}
 	if _, err := store.AppendMessage(context.Background(), tenantA, roomID, memberID, "next"); err != nil {
 		t.Errorf("AppendMessage after an unconfirmed delivery: %v — the reserved turn was never released", err)
+	}
+}
+
+// A client that hangs up mid-delivery does not un-call the recipient's agent.
+// The call is already out, so Rooms sees it through and records the outcome:
+// abandoning the confirmation would report a delivery that succeeded as
+// unconfirmed, and abandoning the write would leave a call the room denies.
+func TestHandlePostMessage_CallerDisconnectDoesNotAbandonADelivery(t *testing.T) {
+	t.Parallel()
+
+	var cancelCaller context.CancelFunc
+	gw := newCountingGateway(t, func(w http.ResponseWriter, _ *http.Request) {
+		// Accepted — the recipient's agent is now running the call. The caller
+		// gives up at exactly this point.
+		cancelCaller()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"invocation_id":"inv_test"}`))
+	})
+
+	mux, store := newMuxWithMemoryAndGateway(t, nil, gw)
+	roomID, memberID := roomAndMember(t, store, 0)
+	recipient := mustAddMember(t, store, roomID, "agt_recipient")
+
+	req := requestAs(t, http.MethodPost, "/v1/rooms/"+roomID+"/messages",
+		map[string]any{"member_id": memberID, "to_member_id": recipient.ID, "body": "delivered anyway"}, tenantA)
+	ctx, cancel := context.WithCancel(req.Context())
+	defer cancel()
+	cancelCaller = cancel
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	msgs, err := store.Messages(context.Background(), tenantA, roomID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Body != "delivered anyway" {
+		t.Fatalf("transcript = %+v, want the delivered message — a hangup lost a confirmed delivery", msgs)
+	}
+
+	events, err := store.Events(context.Background(), tenantA, roomID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	var delivered bool
+	for _, ev := range events {
+		if ev.Kind == room.EventMessageDelivered {
+			delivered = true
+		}
+	}
+	if !delivered {
+		t.Error("no message_delivered event — the delivery outcome went unrecorded when the caller hung up")
 	}
 }
 

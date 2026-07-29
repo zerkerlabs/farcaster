@@ -868,10 +868,12 @@ func TestReserveTurn_RunsTheSameChecksAsAppendMessage(t *testing.T) {
 	}
 }
 
-// Reserving is read-only about lifecycle: unlike AppendMessage it must not
-// abandon a room that is out of turns. Asking whether a turn is available can
-// never be the thing that terminates the room.
-func TestReserveTurn_OutOfTurnsDoesNotAbandonTheRoom(t *testing.T) {
+// Reserving is how an addressed message acquires its turn, so it carries the
+// same consequence AppendMessage does: a room whose budget is genuinely spent
+// is abandoned. Otherwise which of the two paths a post arrived on would decide
+// whether the room lives, and an addressed message could keep asking for turns
+// a broadcast one had already exhausted.
+func TestReserveTurn_OutOfTurnsAbandonsTheRoomLikeAppendMessage(t *testing.T) {
 	t.Parallel()
 
 	s := room.NewStore()
@@ -895,8 +897,12 @@ func TestReserveTurn_OutOfTurnsDoesNotAbandonTheRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRoom: %v", err)
 	}
-	if got.State != room.StateOpen {
-		t.Errorf("State = %q, want %q — reserving must not terminate a room", got.State, room.StateOpen)
+	if got.State != room.StateAbandoned {
+		t.Errorf("State = %q, want %q", got.State, room.StateAbandoned)
+	}
+	last := got.Events[len(got.Events)-1]
+	if last.Kind != room.EventRoomTerminated {
+		t.Errorf("last event kind = %q, want %q", last.Kind, room.EventRoomTerminated)
 	}
 }
 

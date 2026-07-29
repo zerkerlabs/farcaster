@@ -136,6 +136,13 @@ func TestNew_RequiresBaseURLCredentialAndTenant(t *testing.T) {
 		// so every tenant's traffic would go out under this one credential.
 		{"missing tenant", gateway.Config{BaseURL: "https://gateway.example.com", Credential: testCredential}},
 		{"missing all", gateway.Config{}},
+		// A base URL that cannot be called must fail here, where an operator
+		// sees it, rather than at the first delivery — where it would surface
+		// as an upstream failure and read like the gateway was down.
+		{"schemeless base URL", gateway.Config{BaseURL: "gateway.example.com", Credential: testCredential, Tenant: testTenant}},
+		{"non-HTTP base URL", gateway.Config{BaseURL: "ftp://gateway.example.com", Credential: testCredential, Tenant: testTenant}},
+		{"base URL with no host", gateway.Config{BaseURL: "https://", Credential: testCredential, Tenant: testTenant}},
+		{"malformed base URL", gateway.Config{BaseURL: "https://gate way.example.com/\x7f", Credential: testCredential, Tenant: testTenant}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -347,6 +354,44 @@ func TestClient_Call_UnreachableGatewayIsUpstreamFailure(t *testing.T) {
 	_, callErr := c.Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if got := classOf(t, callErr); got != gateway.ErrorClassUpstreamFailure {
 		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUpstreamFailure)
+	}
+}
+
+// A caller giving up does not un-call the recipient's agent: the invocation
+// keeps running server-side, and may well succeed and be billed. So the
+// confirmation poll must not inherit the caller's cancellation — if it did, a
+// client hangup (or a client-side timeout shorter than the confirmation budget)
+// would report a delivery that actually succeeded as unconfirmed.
+func TestClient_Call_ConfirmationSurvivesCallerCancellation(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var polls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"invocation_id":"inv_abc123"}`))
+			return
+		}
+		if atomic.AddInt32(&polls, 1) == 1 {
+			// The caller gives up while the invocation is still running.
+			cancel()
+			_, _ = w.Write([]byte(`{"status":"running"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"succeeded","upstream_status":200}`))
+	}))
+	defer srv.Close()
+
+	result, err := fastClient(t, srv.URL).Call(ctx, testTenant, "agt_recipient", []byte(`{}`))
+	if err != nil {
+		t.Fatalf("Call: %v — a caller hangup abandoned a delivery that went on to succeed", err)
+	}
+	if result.InvocationID != "inv_abc123" {
+		t.Errorf("InvocationID = %q, want %q", result.InvocationID, "inv_abc123")
 	}
 }
 

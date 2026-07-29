@@ -52,63 +52,81 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// agent, with policy and payment consequences, so it happens under a turn
 	// reservation — see postAddressedMessage.
 	//
-	// A reservation the room refuses falls through to here with no delivery:
-	// AppendMessage below produces the authoritative error and any state
-	// transition it implies (exceeding the budget abandons the room), so the
-	// outcome is identical to an unaddressed message minus the call.
-	if req.ToMemberID != "" && h.postAddressedMessage(w, r, tenantID, roomID, req) {
+	// The two paths are exclusive on purpose. An addressed message must never
+	// be able to reach the plain append below: that path takes no ToMemberID
+	// and makes no call, so an addressed request arriving there would be
+	// silently recorded as a broadcast, with a 201 and no proxied call at all
+	// — the bypass this whole package exists to prevent. Every way the
+	// addressed path can fail is answered inside it.
+	if req.ToMemberID != "" {
+		h.postAddressedMessage(w, r, tenantID, roomID, req)
 		return
 	}
 
 	msg, err := h.store.AppendMessage(r.Context(), tenantID, roomID, req.MemberID, req.Body)
 	if err != nil {
-		switch {
-		case errors.Is(err, room.ErrNotFound):
-			writeError(w, http.StatusNotFound, "room not found")
-		case errors.Is(err, room.ErrRoomTerminated):
-			writeError(w, http.StatusConflict, "room is terminated")
-		case errors.Is(err, room.ErrTurnBudgetExceeded):
-			writeError(w, http.StatusConflict, "room turn budget exceeded")
-		case errors.Is(err, room.ErrTurnReserved):
-			// Not out of turns — the remaining ones are held by a delivery
-			// still in flight. The room is still open, so this is worth
-			// retrying, unlike an exhausted budget.
-			writeError(w, http.StatusConflict, "the room's remaining turns are in flight; retry once delivery completes")
-		case errors.Is(err, room.ErrMemberNotFound):
-			writeError(w, http.StatusBadRequest, "member not found in room")
-		default:
-			h.logger.Error("post message: store error", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		h.writePostFailure(w, err)
 		return
 	}
 
 	writeJSON(w, http.StatusCreated, toMessageResponse(msg))
 }
 
+// writePostFailure answers a request whose message could not be posted. Both
+// ways of acquiring a turn — AppendMessage and ReserveTurn — reject with the
+// same errors, and share this so an addressed message and a broadcast one
+// report an identical room state identically.
+func (h *Handler) writePostFailure(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, room.ErrNotFound):
+		writeError(w, http.StatusNotFound, "room not found")
+	case errors.Is(err, room.ErrRoomTerminated):
+		writeError(w, http.StatusConflict, "room is terminated")
+	case errors.Is(err, room.ErrTurnBudgetExceeded):
+		writeError(w, http.StatusConflict, "room turn budget exceeded")
+	case errors.Is(err, room.ErrTurnReserved):
+		// Not out of turns — the remaining ones are held by a delivery still
+		// in flight. The room is still open, so this is worth retrying, unlike
+		// an exhausted budget.
+		writeError(w, http.StatusConflict, "the room's remaining turns are in flight; retry once delivery completes")
+	case errors.Is(err, room.ErrMemberNotFound):
+		writeError(w, http.StatusBadRequest, "member not found in room")
+	default:
+		h.logger.Error("post message: store error", "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 // postAddressedMessage handles a message addressed to another member: it
 // delivers the message as a proxied call to that member's agent and, once
-// delivery is confirmed, records it. It reports whether it handled the request
-// — false means the room refused the turn and the caller should fall through
-// to AppendMessage for the authoritative error; true means a response has been
-// written, whether the delivery succeeded or not.
+// delivery is confirmed, records it. It always writes a response — there is no
+// outcome it hands back to the caller, precisely so an addressed message can
+// never end up on the plain append path with no call made.
 //
-// The whole thing runs under a turn reservation, which is what makes the two
-// steps safe as a pair. Confirming a call can take tens of seconds; between a
-// bare "may this member post?" check and the eventual write, a concurrent
-// request could consume the room's last turn or terminate the room, and the
-// message would be refused after the recipient's agent had already been called
-// — a real, possibly billed call with nothing in the transcript to show for it.
-// Reserving the turn up front runs every check AppendMessage would run AND
-// holds the turn across the delivery, so a confirmed call always lands.
-func (h *Handler) postAddressedMessage(w http.ResponseWriter, r *http.Request, tenantID, roomID string, req postMessageRequest) bool {
+// The whole thing runs under a turn reservation, which is what makes delivery
+// and recording safe as a pair. Confirming a call can take tens of seconds;
+// between a bare "may this member post?" check and the eventual write, a
+// concurrent request could consume the room's last turn or terminate the room,
+// and the message would be refused after the recipient's agent had already
+// been called — a real, possibly billed call with nothing in the transcript to
+// show for it. Reserving the turn up front runs every check AppendMessage
+// would run AND holds the turn across the delivery, so a confirmed call always
+// lands.
+func (h *Handler) postAddressedMessage(w http.ResponseWriter, r *http.Request, tenantID, roomID string, req postMessageRequest) {
 	res, err := h.store.ReserveTurn(r.Context(), tenantID, roomID, room.PendingMessage{
 		MemberID:   req.MemberID,
 		ToMemberID: req.ToMemberID,
 		Body:       req.Body,
 	})
 	if err != nil {
-		return false
+		// The room refused the turn, so nothing is delivered and nothing is
+		// recorded. Reported exactly as the same refusal on a broadcast
+		// message would be — but NOT by retrying as one. ErrTurnReserved in
+		// particular is transient: a retry as a broadcast could well succeed,
+		// turning a message meant for another agent into an ordinary one that
+		// never left the room.
+		h.writePostFailure(w, err)
+		return
 	}
 
 	// A reservation must be resolved exactly once, or the room holds a turn it
@@ -124,7 +142,7 @@ func (h *Handler) postAddressedMessage(w http.ResponseWriter, r *http.Request, t
 	}()
 
 	if !h.deliverToMember(w, r, tenantID, roomID, req) {
-		return true
+		return
 	}
 
 	// Delivered and confirmed. Recording it must not be abandoned because the
@@ -135,12 +153,11 @@ func (h *Handler) postAddressedMessage(w http.ResponseWriter, r *http.Request, t
 	if err != nil {
 		h.logger.Error("post message: record delivered message", "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return true
+		return
 	}
 	committed = true
 
 	writeJSON(w, http.StatusCreated, toMessageResponse(msg))
-	return true
 }
 
 // deliveredMessage is the payload a proxied call carries to the recipient
