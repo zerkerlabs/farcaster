@@ -59,6 +59,19 @@ var ErrRoomTerminated = errors.New("room is terminated")
 // transitions to StateAbandoned as part of the same call.
 var ErrTurnBudgetExceeded = errors.New("room turn budget exceeded")
 
+// ErrTurnReserved is returned when a room's remaining turns are all reserved
+// by deliveries still in flight (see Store.ReserveTurn). It is distinct from
+// ErrTurnBudgetExceeded because the budget is not actually spent yet: a
+// reservation may still be released unspent, so the room is not abandoned and
+// the caller may retry once the in-flight delivery resolves.
+var ErrTurnReserved = errors.New("room turns are reserved by a delivery in flight")
+
+// ErrReservationNotHeld is returned when committing or releasing a turn
+// reservation that is no longer outstanding, because it was already committed
+// or released. Resolving one twice would either double-record a message or
+// hand back a turn that is not held.
+var ErrReservationNotHeld = errors.New("turn reservation is not outstanding")
+
 // DefaultTurnBudget is the turn budget assigned to a room created without an
 // explicit one. It bounds how many message-posting turns a room's members may
 // spend before the room is abandoned rather than left to loop indefinitely.
@@ -90,10 +103,16 @@ type Member struct {
 
 // Message is one member's contribution to a room.
 type Message struct {
-	ID        string
-	MemberID  string // the Member that authored this message
-	Body      string
-	CreatedAt time.Time
+	ID       string
+	MemberID string // the Member that authored this message
+	// ToMemberID is the Member this message was addressed to, empty when it
+	// was posted to the room at large. An addressed message is one that was
+	// delivered as a proxied call to that member's agent before being
+	// recorded, so carrying the recipient here lets a transcript reader see
+	// who a message was for without cross-referencing the event log.
+	ToMemberID string
+	Body       string
+	CreatedAt  time.Time
 }
 
 // EventKind identifies the kind of a room Event.

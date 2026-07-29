@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -46,24 +47,17 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// An addressed message is delivered as a proxied call to the recipient's
-	// agent before it is ever recorded, so a failed call can never look like
-	// a delivered message.
+	// agent before it is ever recorded, so a failed call can never look like a
+	// delivered message. That call is a REAL side effect on another member's
+	// agent, with policy and payment consequences, so it happens under a turn
+	// reservation — see postAddressedMessage.
 	//
-	// But delivery only happens once the request is known to be valid. The
-	// gateway call is a REAL side effect on another member's agent, with
-	// policy and payment consequences; firing it for a terminated room, an
-	// out-of-turns room, or a spoofed sender — and only then having
-	// AppendMessage reject the request — would mean a live call that the room
-	// has no record of at all.
-	//
-	// On a failed pre-check, fall through with no delivery: AppendMessage
-	// below produces the authoritative error and any state transition it
-	// implies (exceeding the budget abandons the room), so the outcome is
-	// identical to an unaddressed message minus the call.
-	if req.ToMemberID != "" && h.store.CheckCanPost(r.Context(), tenantID, roomID, req.MemberID) == nil {
-		if !h.deliverToMember(w, r, tenantID, roomID, req) {
-			return
-		}
+	// A reservation the room refuses falls through to here with no delivery:
+	// AppendMessage below produces the authoritative error and any state
+	// transition it implies (exceeding the budget abandons the room), so the
+	// outcome is identical to an unaddressed message minus the call.
+	if req.ToMemberID != "" && h.postAddressedMessage(w, r, tenantID, roomID, req) {
+		return
 	}
 
 	msg, err := h.store.AppendMessage(r.Context(), tenantID, roomID, req.MemberID, req.Body)
@@ -75,6 +69,11 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "room is terminated")
 		case errors.Is(err, room.ErrTurnBudgetExceeded):
 			writeError(w, http.StatusConflict, "room turn budget exceeded")
+		case errors.Is(err, room.ErrTurnReserved):
+			// Not out of turns — the remaining ones are held by a delivery
+			// still in flight. The room is still open, so this is worth
+			// retrying, unlike an exhausted budget.
+			writeError(w, http.StatusConflict, "the room's remaining turns are in flight; retry once delivery completes")
 		case errors.Is(err, room.ErrMemberNotFound):
 			writeError(w, http.StatusBadRequest, "member not found in room")
 		default:
@@ -85,6 +84,63 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, toMessageResponse(msg))
+}
+
+// postAddressedMessage handles a message addressed to another member: it
+// delivers the message as a proxied call to that member's agent and, once
+// delivery is confirmed, records it. It reports whether it handled the request
+// — false means the room refused the turn and the caller should fall through
+// to AppendMessage for the authoritative error; true means a response has been
+// written, whether the delivery succeeded or not.
+//
+// The whole thing runs under a turn reservation, which is what makes the two
+// steps safe as a pair. Confirming a call can take tens of seconds; between a
+// bare "may this member post?" check and the eventual write, a concurrent
+// request could consume the room's last turn or terminate the room, and the
+// message would be refused after the recipient's agent had already been called
+// — a real, possibly billed call with nothing in the transcript to show for it.
+// Reserving the turn up front runs every check AppendMessage would run AND
+// holds the turn across the delivery, so a confirmed call always lands.
+func (h *Handler) postAddressedMessage(w http.ResponseWriter, r *http.Request, tenantID, roomID string, req postMessageRequest) bool {
+	res, err := h.store.ReserveTurn(r.Context(), tenantID, roomID, room.PendingMessage{
+		MemberID:   req.MemberID,
+		ToMemberID: req.ToMemberID,
+		Body:       req.Body,
+	})
+	if err != nil {
+		return false
+	}
+
+	// A reservation must be resolved exactly once, or the room holds a turn it
+	// can never spend. Everything below either commits it or falls into here.
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		if err := h.store.ReleaseTurn(r.Context(), res); err != nil {
+			h.logger.Error("post message: release turn", "err", err)
+		}
+	}()
+
+	if !h.deliverToMember(w, r, tenantID, roomID, req) {
+		return true
+	}
+
+	// Delivered and confirmed. Recording it must not be abandoned because the
+	// caller hung up mid-delivery — hanging up does not un-call the recipient's
+	// agent, and the transcript has to say the call happened. Hence a context
+	// detached from the request's cancellation.
+	msg, err := h.store.CommitTurn(context.WithoutCancel(r.Context()), res)
+	if err != nil {
+		h.logger.Error("post message: record delivered message", "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return true
+	}
+	committed = true
+
+	writeJSON(w, http.StatusCreated, toMessageResponse(msg))
+	return true
 }
 
 // deliveredMessage is the payload a proxied call carries to the recipient
@@ -112,9 +168,9 @@ type deliveredMessage struct {
 // so the client polls the invocation to completion rather than trusting the
 // 202 that accepts it.
 //
-// Callers must establish that the message would be accepted (see
-// Store.CheckCanPost) before calling this — it performs a real side effect on
-// another member's agent.
+// Callers must hold a turn reservation for the message (see Store.ReserveTurn)
+// before calling this — it performs a real side effect on another member's
+// agent, and that side effect must be both permitted and recordable.
 func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenantID, roomID string, req postMessageRequest) bool {
 	toAgentID, err := h.store.MemberAgentID(r.Context(), tenantID, roomID, req.ToMemberID)
 	if err != nil {
@@ -142,12 +198,19 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 		return false
 	}
 
-	result, callErr := h.gateway.Call(r.Context(), toAgentID, payload)
+	result, callErr := h.gateway.Call(r.Context(), tenantID, toAgentID, payload)
+
+	// What happened to the call is recorded on a context detached from the
+	// request's: the call reached the recipient (or didn't) whether or not the
+	// caller is still waiting, and an event log that drops outcomes when a
+	// client disconnects is not one you can audit against.
+	recordCtx := context.WithoutCancel(r.Context())
+
 	if callErr == nil {
 		// Confirmed delivered. Record the gateway's invocation ID so this
 		// room's transcript can be reconciled against the gateway's own
 		// invocation record when debugging.
-		if err := h.store.RecordDelivery(r.Context(), tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, result.InvocationID); err != nil {
+		if err := h.store.RecordDelivery(recordCtx, tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, result.InvocationID); err != nil {
 			h.logger.Error("post message: record delivery", "err", err)
 		}
 		return true
@@ -158,7 +221,7 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 	if errors.As(callErr, &ce) {
 		class = ce.Class
 	}
-	if err := h.store.RecordDeliveryFailure(r.Context(), tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, string(class)); err != nil {
+	if err := h.store.RecordDeliveryFailure(recordCtx, tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, string(class)); err != nil {
 		h.logger.Error("post message: record delivery failure", "err", err)
 	}
 
@@ -173,6 +236,13 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 		// distinctly from a failure: it may have reached the recipient, so the
 		// caller must not assume it can safely retry as if nothing happened.
 		writeError(w, http.StatusGatewayTimeout, "message delivery could not be confirmed: the call was accepted but did not complete in time")
+	case gateway.ErrorClassTenantMismatch:
+		// Nothing was sent: this deployment's gateway credential acts for a
+		// different tenant, so the call could only have gone out misattributed.
+		// A deployment problem, not a request problem — hence 5xx.
+		h.logger.Error("post message: gateway client cannot act for this tenant",
+			"tenant", tenantID, "room", roomID)
+		writeError(w, http.StatusInternalServerError, "addressed messages are not available for this tenant")
 	default:
 		writeError(w, http.StatusBadGateway, "message could not be delivered: gateway upstream failure")
 	}

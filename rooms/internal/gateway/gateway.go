@@ -14,6 +14,13 @@
 // 202 as success would report the dominant real failure mode (the recipient
 // agent erroring, being unreachable, or timing out) as a delivered message.
 //
+// The gateway is multi-tenant and derives the acting tenant from the
+// credential's claims, so one credential acts for exactly one tenant. Rooms is
+// multi-tenant too, so a Client is configured with the tenant its credential
+// acts as (Config.Tenant) and refuses any call for a different one. One Rooms
+// deployment therefore serves addressed messaging for one gateway tenant; see
+// Config.Tenant for what serving several would take.
+//
 // This package only issues the call and classifies the outcome. Retries,
 // streaming, payment handling, and policy logic all live in the gateway.
 package gateway
@@ -68,6 +75,12 @@ const (
 	// recording it as a delivery. Unknown is its own outcome, and the one
 	// thing it must never be reported as is success.
 	ErrorClassUnconfirmed ErrorClass = "unconfirmed"
+	// ErrorClassTenantMismatch means the call was for a tenant this client
+	// cannot act for: its credential authenticates as a different gateway
+	// tenant (see Config.Tenant). Nothing was sent — refusing locally is the
+	// whole point, since sending would attribute one tenant's call to another
+	// tenant's credential.
+	ErrorClassTenantMismatch ErrorClass = "tenant_mismatch"
 )
 
 // CallError is returned by Client.Call when a proxied call does not succeed.
@@ -108,12 +121,32 @@ type Config struct {
 	// Credential is the bearer credential Rooms authenticates to the gateway
 	// with. Required. Never logged and never returned in an error.
 	Credential string
+	// Tenant is the gateway tenant Credential authenticates as. Required.
+	//
+	// The gateway derives the acting tenant from the credential's claims, not
+	// from anything in the request: one credential means one tenant, and every
+	// proxied call this client makes is attributed to that tenant for agent
+	// lookup, policy, and x402 payment. Rooms, though, is multi-tenant. So Call
+	// takes the tenant it is acting on behalf of and refuses anything that is
+	// not this one, rather than silently billing and authorising one tenant's
+	// agent-to-agent traffic against another tenant's credential.
+	//
+	// A Rooms deployment therefore serves addressed messaging for exactly one
+	// gateway tenant. Serving several means one Rooms per tenant, or teaching
+	// this client per-tenant credentials — a change confined to this seam,
+	// since Call already carries the tenant.
+	Tenant string
 	// Timeout bounds a single HTTP request. Zero or negative uses
 	// DefaultTimeout.
 	Timeout time.Duration
 	// ConfirmTimeout bounds the total time spent polling for an accepted
 	// invocation's terminal state. Zero or negative uses
 	// DefaultConfirmTimeout.
+	//
+	// Call is synchronous, so Timeout + ConfirmTimeout is the worst-case time a
+	// single Call can take — with the defaults, 30s + 60s. Whatever fronts
+	// Rooms (load balancer, reverse proxy, client) needs a request timeout
+	// above that, or it will give up on a delivery Rooms is still confirming.
 	ConfirmTimeout time.Duration
 	// PollInterval is the delay between poll attempts. Zero or negative uses
 	// DefaultPollInterval.
@@ -134,19 +167,26 @@ type Result struct {
 type Client struct {
 	baseURL        string
 	credential     string
+	tenant         string
 	httpClient     *http.Client
 	confirmTimeout time.Duration
 	pollInterval   time.Duration
 }
 
-// New constructs a Client from cfg. Returns an error if BaseURL or Credential
-// is empty — both are required and must come from configuration.
+// New constructs a Client from cfg. Returns an error if BaseURL, Credential,
+// or Tenant is empty — all three are required and must come from
+// configuration. Tenant is required rather than optional so a deployment
+// cannot end up quietly attributing every tenant's calls to one credential:
+// with no tenant configured there is nothing to check a call against.
 func New(cfg Config) (*Client, error) {
 	if cfg.BaseURL == "" {
 		return nil, errors.New("gateway: base URL is required")
 	}
 	if cfg.Credential == "" {
 		return nil, errors.New("gateway: credential is required")
+	}
+	if cfg.Tenant == "" {
+		return nil, errors.New("gateway: tenant is required — it names the tenant the credential acts as")
 	}
 	timeout := cfg.Timeout
 	if timeout <= 0 {
@@ -163,21 +203,28 @@ func New(cfg Config) (*Client, error) {
 	return &Client{
 		baseURL:        strings.TrimRight(cfg.BaseURL, "/"),
 		credential:     cfg.Credential,
+		tenant:         cfg.Tenant,
 		httpClient:     &http.Client{Timeout: timeout},
 		confirmTimeout: confirmTimeout,
 		pollInterval:   pollInterval,
 	}, nil
 }
 
-// Call delivers body to agentID through the gateway's proxy and returns only
-// once delivery is CONFIRMED.
+// Call delivers body to agentID through the gateway's proxy on behalf of
+// tenantID, and returns only once delivery is CONFIRMED.
+//
+// tenantID must be the tenant this client's credential acts as (Config.Tenant);
+// anything else is refused with ErrorClassTenantMismatch before any request is
+// made, because the gateway would attribute the call to the credential's tenant
+// regardless of who it was really for.
 //
 // The proxy is asynchronous: the POST returns 202 with an invocation_id, and
 // the upstream call runs server-side afterwards. Call therefore does two
 // things — it issues the POST, then polls
 // GET /v1/proxy/{agt_id}/invocations/{inv_id} until the invocation is
 // succeeded or failed. Returning at the 202 would report every upstream
-// error, timeout, and unreachable agent as a successful delivery.
+// error, timeout, and unreachable agent as a successful delivery. That polling
+// is synchronous, so a Call can take up to Timeout + ConfirmTimeout.
 //
 // Failures are classified, never forwarded: a 4xx (on the POST, or as the
 // recipient's own status) is ErrorClassCallerError; a 5xx, network failure, or
@@ -186,7 +233,11 @@ func New(cfg Config) (*Client, error) {
 // ErrorClassUnconfirmed. No raw response body reaches the caller (AGENTS.md
 // invariant #3), and the credential never appears in a returned error
 // (invariant #4).
-func (c *Client) Call(ctx context.Context, agentID string, body []byte) (*Result, error) {
+func (c *Client) Call(ctx context.Context, tenantID, agentID string, body []byte) (*Result, error) {
+	if tenantID != c.tenant {
+		return nil, &CallError{Class: ErrorClassTenantMismatch}
+	}
+
 	invocationID, err := c.accept(ctx, agentID, body)
 	if err != nil {
 		return nil, err

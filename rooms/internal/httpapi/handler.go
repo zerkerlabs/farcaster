@@ -21,9 +21,12 @@ import (
 // interface.
 //
 // Call returns only once delivery is confirmed — the gateway's proxy is
-// asynchronous, so an accepted call is not yet a delivered one.
+// asynchronous, so an accepted call is not yet a delivered one. It takes the
+// tenant the call is made on behalf of: the gateway attributes a proxied call
+// to whichever tenant the credential belongs to, so the tenant has to be
+// carried explicitly rather than assumed.
 type GatewayCaller interface {
-	Call(ctx context.Context, agentID string, body []byte) (*gateway.Result, error)
+	Call(ctx context.Context, tenantID, agentID string, body []byte) (*gateway.Result, error)
 }
 
 // Handler holds the shared dependencies for the Rooms HTTP handlers.

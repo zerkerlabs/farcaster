@@ -105,10 +105,17 @@ func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux 
 }
 
 // gatewayConfigFromEnv builds the gateway client's config from environment
-// variables. ROOMS_GATEWAY_BASE_URL and ROOMS_GATEWAY_CREDENTIAL are
-// required — gateway.New rejects a config missing either, since the base URL
-// and credential must come from configuration and never be hardcoded
-// (AGENTS.md invariant #4 covers the credential).
+// variables. ROOMS_GATEWAY_BASE_URL, ROOMS_GATEWAY_CREDENTIAL, and
+// ROOMS_GATEWAY_TENANT are required — gateway.New rejects a config missing any
+// of them, since the base URL and credential must come from configuration and
+// never be hardcoded (AGENTS.md invariant #4 covers the credential).
+//
+// ROOMS_GATEWAY_TENANT names the gateway tenant the credential authenticates
+// as. The gateway takes the acting tenant from the credential's claims, so one
+// credential acts for one tenant, and this deployment can only deliver
+// addressed messages for rooms belonging to that tenant — a room from any
+// other tenant is refused rather than sent out misattributed. Serving several
+// tenants means running a Rooms per tenant.
 //
 // Two optional durations tune the call, and they bound different things.
 // ROOMS_GATEWAY_TIMEOUT bounds a single HTTP request. The proxy is
@@ -118,10 +125,16 @@ func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux 
 // That is the one to raise for slow recipient agents; raising the request
 // timeout would not help. Unset or invalid values fall back to the package
 // defaults.
+//
+// Their sum is what a caller feels: posting an addressed message blocks until
+// delivery is confirmed, so it can take ROOMS_GATEWAY_TIMEOUT +
+// ROOMS_GATEWAY_CONFIRM_TIMEOUT (90s by default) in the worst case. Anything
+// fronting Rooms needs a request timeout above that.
 func gatewayConfigFromEnv(logger *slog.Logger) gateway.Config {
 	return gateway.Config{
 		BaseURL:        os.Getenv("ROOMS_GATEWAY_BASE_URL"),
 		Credential:     os.Getenv("ROOMS_GATEWAY_CREDENTIAL"),
+		Tenant:         os.Getenv("ROOMS_GATEWAY_TENANT"),
 		Timeout:        durationFromEnv(logger, "ROOMS_GATEWAY_TIMEOUT"),
 		ConfirmTimeout: durationFromEnv(logger, "ROOMS_GATEWAY_CONFIRM_TIMEOUT"),
 	}

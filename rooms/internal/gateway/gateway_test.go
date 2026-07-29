@@ -16,7 +16,12 @@ import (
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 )
 
-const testCredential = "s3cr3t-credential-value" //nolint:gosec // test fixture, not a real credential
+const (
+	testCredential = "s3cr3t-credential-value" //nolint:gosec // test fixture, not a real credential
+	// testTenant is the tenant testCredential acts as: the only tenant a
+	// client built from it may make calls for.
+	testTenant = "tenant-alpha"
+)
 
 // fakeGateway models the gateway's ACTUAL proxy contract: POST accepts the
 // call and returns 202 with an invocation_id, and the real outcome is only
@@ -99,6 +104,7 @@ func fastClient(t *testing.T, baseURL string) *gateway.Client {
 	c, err := gateway.New(gateway.Config{
 		BaseURL:        baseURL,
 		Credential:     testCredential,
+		Tenant:         testTenant,
 		ConfirmTimeout: 2 * time.Second,
 		PollInterval:   time.Millisecond,
 	})
@@ -117,16 +123,19 @@ func classOf(t *testing.T, err error) gateway.ErrorClass {
 	return ce.Class
 }
 
-func TestNew_RequiresBaseURLAndCredential(t *testing.T) {
+func TestNew_RequiresBaseURLCredentialAndTenant(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name string
 		cfg  gateway.Config
 	}{
-		{"missing base URL", gateway.Config{Credential: testCredential}},
-		{"missing credential", gateway.Config{BaseURL: "https://gateway.example.com"}},
-		{"missing both", gateway.Config{}},
+		{"missing base URL", gateway.Config{Credential: testCredential, Tenant: testTenant}},
+		{"missing credential", gateway.Config{BaseURL: "https://gateway.example.com", Tenant: testTenant}},
+		// With no tenant configured there is nothing to check a call against,
+		// so every tenant's traffic would go out under this one credential.
+		{"missing tenant", gateway.Config{BaseURL: "https://gateway.example.com", Credential: testCredential}},
+		{"missing all", gateway.Config{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -151,7 +160,7 @@ func TestClient_Call_ConfirmsViaPolling(t *testing.T) {
 	f := &fakeGateway{statuses: []string{"pending", "running", "succeeded"}, upstreamStatus: 200}
 	srv := f.server(t)
 
-	result, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{"body":"hi"}`))
+	result, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{"body":"hi"}`))
 	if err != nil {
 		t.Fatalf("Call: %v", err)
 	}
@@ -192,7 +201,7 @@ func TestClient_Call_AcceptedThenFailedIsNotDelivered(t *testing.T) {
 	f := &fakeGateway{statuses: []string{"running", "failed"}, upstreamStatus: 502}
 	srv := f.server(t)
 
-	result, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	result, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if err == nil {
 		t.Fatal("err = nil for a failed invocation — an accepted call was reported as delivered")
 	}
@@ -211,7 +220,7 @@ func TestClient_Call_FailedWithRecipient4xxIsCallerError(t *testing.T) {
 	f := &fakeGateway{statuses: []string{"failed"}, upstreamStatus: 422}
 	srv := f.server(t)
 
-	_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	_, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if got := classOf(t, err); got != gateway.ErrorClassCallerError {
 		t.Errorf("class = %q, want %q", got, gateway.ErrorClassCallerError)
 	}
@@ -239,7 +248,7 @@ func TestClient_Call_ClassifiesSynchronousRejection(t *testing.T) {
 			f := &fakeGateway{acceptStatus: tt.status, statuses: []string{"succeeded"}}
 			srv := f.server(t)
 
-			_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+			_, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 			if got := classOf(t, err); got != tt.want {
 				t.Errorf("class = %q, want %q", got, tt.want)
 			}
@@ -262,6 +271,7 @@ func TestClient_Call_NeverTerminalIsUnconfirmed(t *testing.T) {
 	c, err := gateway.New(gateway.Config{
 		BaseURL:        srv.URL,
 		Credential:     testCredential,
+		Tenant:         testTenant,
 		ConfirmTimeout: 60 * time.Millisecond,
 		PollInterval:   time.Millisecond,
 	})
@@ -269,7 +279,7 @@ func TestClient_Call_NeverTerminalIsUnconfirmed(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	result, callErr := c.Call(context.Background(), "agt_recipient", []byte(`{}`))
+	result, callErr := c.Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if callErr == nil {
 		t.Fatal("err = nil — an unconfirmed call was reported as delivered")
 	}
@@ -290,7 +300,7 @@ func TestClient_Call_AcceptedWithoutInvocationIDIsUnconfirmed(t *testing.T) {
 	f := &fakeGateway{omitInvocationID: true, statuses: []string{"succeeded"}}
 	srv := f.server(t)
 
-	_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+	_, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if got := classOf(t, err); got != gateway.ErrorClassUnconfirmed {
 		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUnconfirmed)
 	}
@@ -317,7 +327,7 @@ func TestClient_Call_TransientPollFailureIsRetried(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`)); err != nil {
+	if _, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`)); err != nil {
 		t.Fatalf("Call: %v — transient poll failures should be retried, not treated as delivery failures", err)
 	}
 }
@@ -329,14 +339,38 @@ func TestClient_Call_UnreachableGatewayIsUpstreamFailure(t *testing.T) {
 	url := srv.URL
 	srv.Close() // nothing is listening now
 
-	c, err := gateway.New(gateway.Config{BaseURL: url, Credential: testCredential})
+	c, err := gateway.New(gateway.Config{BaseURL: url, Credential: testCredential, Tenant: testTenant})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 
-	_, callErr := c.Call(context.Background(), "agt_recipient", []byte(`{}`))
+	_, callErr := c.Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 	if got := classOf(t, callErr); got != gateway.ErrorClassUpstreamFailure {
 		t.Errorf("class = %q, want %q", got, gateway.ErrorClassUpstreamFailure)
+	}
+}
+
+// The gateway takes the acting tenant from the credential's claims, so a call
+// made for any other tenant would be authorised, policy-checked, and billed
+// against the wrong one. It has to be refused here, before anything is sent.
+func TestClient_Call_RefusesAnotherTenant(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeGateway{statuses: []string{"succeeded"}, upstreamStatus: 200}
+	srv := f.server(t)
+
+	result, err := fastClient(t, srv.URL).Call(context.Background(), "tenant-beta", "agt_recipient", []byte(`{}`))
+	if err == nil {
+		t.Fatal("err = nil — a call for another tenant was made under this tenant's credential")
+	}
+	if result != nil {
+		t.Errorf("result = %+v, want nil", result)
+	}
+	if got := classOf(t, err); got != gateway.ErrorClassTenantMismatch {
+		t.Errorf("class = %q, want %q", got, gateway.ErrorClassTenantMismatch)
+	}
+	if got := atomic.LoadInt32(&f.posts); got != 0 {
+		t.Errorf("POST count = %d, want 0 — nothing may be sent for a tenant this client cannot act for", got)
 	}
 }
 
@@ -355,7 +389,7 @@ func TestClient_Call_CredentialNeverLeaks(t *testing.T) {
 			t.Parallel()
 
 			srv := f.server(t)
-			_, err := fastClient(t, srv.URL).Call(context.Background(), "agt_recipient", []byte(`{}`))
+			_, err := fastClient(t, srv.URL).Call(context.Background(), testTenant, "agt_recipient", []byte(`{}`))
 			if err == nil {
 				t.Fatal("err = nil, want an error")
 			}
