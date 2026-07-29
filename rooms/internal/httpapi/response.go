@@ -26,12 +26,16 @@ type memberResponse struct {
 	JoinedAt time.Time `json:"joined_at"`
 }
 
-// messageResponse is the JSON representation of a Message.
+// messageResponse is the JSON representation of a Message. ToMemberID is
+// omitted for a message posted to the room at large, so its presence is what
+// marks a message as addressed — and delivered as a proxied call to that
+// member's agent.
 type messageResponse struct {
-	ID        string    `json:"id"`
-	MemberID  string    `json:"member_id"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         string    `json:"id"`
+	MemberID   string    `json:"member_id"`
+	ToMemberID string    `json:"to_member_id,omitempty"`
+	Body       string    `json:"body"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // toRoomResponse maps a *room.Room and its replayed transcript to their JSON
@@ -66,9 +70,10 @@ func toMemberResponse(m *room.Member) memberResponse {
 
 func toMessageResponse(m *room.Message) messageResponse {
 	return messageResponse{
-		ID:        m.ID,
-		MemberID:  m.MemberID,
-		Body:      m.Body,
-		CreatedAt: m.CreatedAt,
+		ID:         m.ID,
+		MemberID:   m.MemberID,
+		ToMemberID: m.ToMemberID,
+		Body:       m.Body,
+		CreatedAt:  m.CreatedAt,
 	}
 }

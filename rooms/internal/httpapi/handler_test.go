@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
@@ -20,6 +21,17 @@ const (
 	tenantA = "tenant-alpha"
 	tenantB = "tenant-beta"
 )
+
+// unreachableGateway is a httpapi.GatewayCaller for tests that never exercise
+// addressed messaging: any call fails the test loudly rather than silently
+// pretending to deliver, so an unexpected gateway call doesn't go unnoticed.
+type unreachableGateway struct{ t *testing.T }
+
+func (g unreachableGateway) Call(_ context.Context, _, agentID string, _ []byte) (*gateway.Result, error) {
+	g.t.Helper()
+	g.t.Fatalf("unexpected gateway call to %q", agentID)
+	return nil, nil
+}
 
 // newMux returns a mux serving the four v1 room routes, backed by a fresh
 // in-memory room store and a fresh in-memory memory store.
@@ -32,8 +44,15 @@ func newMux(t *testing.T) (*http.ServeMux, *room.Store) {
 // that need to seed onboarding entries or exercise a failing memory backend.
 func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (*http.ServeMux, *room.Store) {
 	t.Helper()
+	return newMuxWithMemoryAndGateway(t, memoryStore, unreachableGateway{t})
+}
+
+// newMuxWithMemoryAndGateway is newMuxWithMemory with a caller-supplied
+// httpapi.GatewayCaller, for tests exercising addressed-message delivery.
+func newMuxWithMemoryAndGateway(t *testing.T, memoryStore memory.Store, gatewayClient httpapi.GatewayCaller) (*http.ServeMux, *room.Store) {
+	t.Helper()
 	store := room.NewStore()
-	h := httpapi.NewHandler(store, memoryStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := httpapi.NewHandler(store, memoryStore, gatewayClient, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	return mux, store

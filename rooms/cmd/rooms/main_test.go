@@ -25,7 +25,9 @@ func TestOperationalRoutes(t *testing.T) {
 		{"healthz rejects POST", http.MethodPost, "/healthz", http.StatusMethodNotAllowed, nil},
 	}
 
-	mux := newMux(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// The operational route tests never exercise message delivery, so a nil
+	// gateway client (never called) is fine here.
+	mux := newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -60,7 +62,7 @@ func TestVersionExposesOnlyBuildMetadata(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	newMux(slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/version", nil))
+	newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/version", nil))
 
 	var body map[string]string
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {

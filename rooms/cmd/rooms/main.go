@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
@@ -54,9 +56,14 @@ func run(logger *slog.Logger) error {
 		addr = defaultAddr
 	}
 
+	gwClient, err := gateway.New(gatewayConfigFromEnv(logger))
+	if err != nil {
+		return fmt.Errorf("init gateway client: %w", err)
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(logger),
+		Handler:           newMux(logger, gwClient),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -85,7 +92,7 @@ func run(logger *slog.Logger) error {
 // (AGENTS.md invariant #1). The four room routes are tenant-scoped through
 // the tenant context seam (rooms/internal/tenant); bearer-token
 // authentication that populates it lands separately.
-func newMux(logger *slog.Logger) *http.ServeMux {
+func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /version", versionHandler())
@@ -93,8 +100,59 @@ func newMux(logger *slog.Logger) *http.ServeMux {
 	// memory.NewFake is a stand-in for the real memory backend, which does not
 	// exist yet (rooms/internal/memory); a real client wires in here later
 	// without changing the httpapi.Handler seam.
-	httpapi.NewHandler(room.NewStore(), memory.NewFake(), logger).RegisterRoutes(mux)
+	httpapi.NewHandler(room.NewStore(), memory.NewFake(), gwClient, logger).RegisterRoutes(mux)
 	return mux
+}
+
+// gatewayConfigFromEnv builds the gateway client's config from environment
+// variables. ROOMS_GATEWAY_BASE_URL, ROOMS_GATEWAY_CREDENTIAL, and
+// ROOMS_GATEWAY_TENANT are required — gateway.New rejects a config missing any
+// of them, since the base URL and credential must come from configuration and
+// never be hardcoded (AGENTS.md invariant #4 covers the credential).
+//
+// ROOMS_GATEWAY_TENANT names the gateway tenant the credential authenticates
+// as. The gateway takes the acting tenant from the credential's claims, so one
+// credential acts for one tenant, and this deployment can only deliver
+// addressed messages for rooms belonging to that tenant — a room from any
+// other tenant is refused rather than sent out misattributed. Serving several
+// tenants means running a Rooms per tenant.
+//
+// Two optional durations tune the call, and they bound different things.
+// ROOMS_GATEWAY_TIMEOUT bounds a single HTTP request. The proxy is
+// asynchronous, though — it returns 202 and runs the call server-side — so
+// ROOMS_GATEWAY_CONFIRM_TIMEOUT bounds how long Rooms will poll the resulting
+// invocation for a terminal state before reporting the outcome as unknown.
+// That is the one to raise for slow recipient agents; raising the request
+// timeout would not help. Unset or invalid values fall back to the package
+// defaults.
+//
+// Their sum is what a caller feels: posting an addressed message blocks until
+// delivery is confirmed, so it can take ROOMS_GATEWAY_TIMEOUT +
+// ROOMS_GATEWAY_CONFIRM_TIMEOUT (90s by default) in the worst case. Anything
+// fronting Rooms needs a request timeout above that.
+func gatewayConfigFromEnv(logger *slog.Logger) gateway.Config {
+	return gateway.Config{
+		BaseURL:        os.Getenv("ROOMS_GATEWAY_BASE_URL"),
+		Credential:     os.Getenv("ROOMS_GATEWAY_CREDENTIAL"),
+		Tenant:         os.Getenv("ROOMS_GATEWAY_TENANT"),
+		Timeout:        durationFromEnv(logger, "ROOMS_GATEWAY_TIMEOUT"),
+		ConfirmTimeout: durationFromEnv(logger, "ROOMS_GATEWAY_CONFIRM_TIMEOUT"),
+	}
+}
+
+// durationFromEnv reads an optional duration, returning zero (which the
+// gateway package reads as "use the default") when unset or unparseable.
+func durationFromEnv(logger *slog.Logger, key string) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		logger.Warn("rooms: invalid duration, using default", "var", key, "value", v, "err", err)
+		return 0
+	}
+	return d
 }
 
 // healthz reports liveness only: the process answered. Readiness gains meaning

@@ -603,6 +603,98 @@ func TestCreateRoomWithBudget_RejectsNonPositive(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------- MemberAgentID ---
+
+func TestMemberAgentID(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	member, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_1", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	t.Run("resolves a seated member", func(t *testing.T) {
+		t.Parallel()
+
+		got, err := s.MemberAgentID(context.Background(), tenantA, r.ID, member.ID)
+		if err != nil {
+			t.Fatalf("MemberAgentID: %v", err)
+		}
+		if got != "agt_1" {
+			t.Errorf("got %q, want %q", got, "agt_1")
+		}
+	})
+
+	t.Run("unknown member is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := s.MemberAgentID(context.Background(), tenantA, r.ID, "mem_nope"); !errors.Is(err, room.ErrMemberNotFound) {
+			t.Errorf("err = %v, want ErrMemberNotFound", err)
+		}
+	})
+
+	t.Run("cross-tenant room is not found", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := s.MemberAgentID(context.Background(), tenantB, r.ID, member.ID); !errors.Is(err, room.ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// ----------------------------------------------------- RecordDeliveryFailure
+
+func TestRecordDeliveryFailure(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r := mustCreateRoom(t, s, tenantA, "goal")
+	sender, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	recipient, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_recipient", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	if err := s.RecordDeliveryFailure(context.Background(), tenantA, r.ID, sender.ID, recipient.ID, "agt_recipient", "upstream_failure"); err != nil {
+		t.Fatalf("RecordDeliveryFailure: %v", err)
+	}
+
+	events, err := s.Events(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	last := events[len(events)-1]
+	if last.Kind != room.EventDeliveryFailed {
+		t.Fatalf("last event kind = %q, want %q", last.Kind, room.EventDeliveryFailed)
+	}
+	payload, ok := last.Payload.(room.DeliveryFailedPayload)
+	if !ok {
+		t.Fatalf("last event payload = %T, want room.DeliveryFailedPayload", last.Payload)
+	}
+	if payload.FromMemberID != sender.ID || payload.ToMemberID != recipient.ID || payload.ToAgentID != "agt_recipient" || payload.Class != "upstream_failure" {
+		t.Errorf("payload = %+v, unexpected fields", payload)
+	}
+
+	// A failed delivery must never be recorded (or mistaken for) a posted
+	// message: it consumes no turn and leaves the transcript untouched.
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Errorf("Messages = %v, want empty after a failed delivery", msgs)
+	}
+
+	if err := s.RecordDeliveryFailure(context.Background(), tenantB, r.ID, sender.ID, recipient.ID, "agt_recipient", "caller_error"); !errors.Is(err, room.ErrNotFound) {
+		t.Errorf("cross-tenant RecordDeliveryFailure err = %v, want ErrNotFound", err)
+	}
+}
+
 // -------------------------------------------------------------- terminal ---
 
 func TestCompleteRoom(t *testing.T) {
@@ -693,6 +785,275 @@ func TestTerminatedRoomRejectsAppends(t *testing.T) {
 			_, err = s.CompleteRoom(context.Background(), tenantA, r.ID)
 			if !errors.Is(err, room.ErrRoomTerminated) {
 				t.Errorf("CompleteRoom err = %v, want ErrRoomTerminated", err)
+			}
+		})
+	}
+}
+
+// ------------------------------------------------------- turn reservations ---
+
+// A reservation runs exactly the checks AppendMessage runs, so a caller can
+// find out whether a message would be accepted BEFORE performing a side effect
+// it cannot take back.
+func TestReserveTurn_RunsTheSameChecksAsAppendMessage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		lookup  string
+		setup   func(t *testing.T, s *room.Store, roomID, memberID string) (member string)
+		wantErr error
+	}{
+		{
+			name:   "terminated room",
+			lookup: tenantA,
+			setup: func(t *testing.T, s *room.Store, roomID, memberID string) string {
+				t.Helper()
+				if _, err := s.CompleteRoom(context.Background(), tenantA, roomID); err != nil {
+					t.Fatalf("CompleteRoom: %v", err)
+				}
+				return memberID
+			},
+			wantErr: room.ErrRoomTerminated,
+		},
+		{
+			name:    "sender not seated in the room",
+			lookup:  tenantA,
+			setup:   func(_ *testing.T, _ *room.Store, _, _ string) string { return "mem_spoofed" },
+			wantErr: room.ErrMemberNotFound,
+		},
+		{
+			name:   "turn budget already spent",
+			lookup: tenantA,
+			setup: func(t *testing.T, s *room.Store, roomID, memberID string) string {
+				t.Helper()
+				if _, err := s.AppendMessage(context.Background(), tenantA, roomID, memberID, "spend the turn"); err != nil {
+					t.Fatalf("AppendMessage: %v", err)
+				}
+				return memberID
+			},
+			wantErr: room.ErrTurnBudgetExceeded,
+		},
+		{
+			name:    "room belongs to another tenant",
+			lookup:  tenantB,
+			setup:   func(_ *testing.T, _ *room.Store, _, memberID string) string { return memberID },
+			wantErr: room.ErrNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := room.NewStore()
+			r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", 1)
+			if err != nil {
+				t.Fatalf("CreateRoomWithBudget: %v", err)
+			}
+			m, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+			if err != nil {
+				t.Fatalf("AddMember: %v", err)
+			}
+			memberID := tt.setup(t, s, r.ID, m.ID)
+
+			res, err := s.ReserveTurn(context.Background(), tt.lookup, r.ID, room.PendingMessage{MemberID: memberID, Body: "hi"})
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if res != nil {
+				t.Errorf("reservation = %+v, want nil when the turn was refused", res)
+			}
+		})
+	}
+}
+
+// Reserving is how an addressed message acquires its turn, so it carries the
+// same consequence AppendMessage does: a room whose budget is genuinely spent
+// is abandoned. Otherwise which of the two paths a post arrived on would decide
+// whether the room lives, and an addressed message could keep asking for turns
+// a broadcast one had already exhausted.
+func TestReserveTurn_OutOfTurnsAbandonsTheRoomLikeAppendMessage(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", 1)
+	if err != nil {
+		t.Fatalf("CreateRoomWithBudget: %v", err)
+	}
+	m, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, m.ID, "spend the turn"); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+
+	if _, err := s.ReserveTurn(context.Background(), tenantA, r.ID, room.PendingMessage{MemberID: m.ID, Body: "hi"}); !errors.Is(err, room.ErrTurnBudgetExceeded) {
+		t.Fatalf("ReserveTurn err = %v, want ErrTurnBudgetExceeded", err)
+	}
+
+	got, err := s.GetRoom(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.State != room.StateAbandoned {
+		t.Errorf("State = %q, want %q", got.State, room.StateAbandoned)
+	}
+	last := got.Events[len(got.Events)-1]
+	if last.Kind != room.EventRoomTerminated {
+		t.Errorf("last event kind = %q, want %q", last.Kind, room.EventRoomTerminated)
+	}
+}
+
+// The point of a reservation: the turn is held for the life of the side effect,
+// so nothing arriving in the meantime can spend it. Releasing gives it back.
+func TestReserveTurn_HoldsTheTurnUntilResolved(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", 1)
+	if err != nil {
+		t.Fatalf("CreateRoomWithBudget: %v", err)
+	}
+	m, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	res, err := s.ReserveTurn(context.Background(), tenantA, r.ID, room.PendingMessage{MemberID: m.ID, Body: "reserved"})
+	if err != nil {
+		t.Fatalf("ReserveTurn: %v", err)
+	}
+
+	// Refused — but as a retryable conflict, not an exhausted budget: the
+	// reserved turn may still come back, so the room must not be abandoned on
+	// account of a delivery that has not landed yet.
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, m.ID, "steal the turn"); !errors.Is(err, room.ErrTurnReserved) {
+		t.Fatalf("AppendMessage err = %v, want ErrTurnReserved — a reserved turn was spent twice", err)
+	}
+	got, err := s.GetRoom(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if got.State != room.StateOpen {
+		t.Fatalf("State = %q, want %q — a turn merely reserved must not abandon the room", got.State, room.StateOpen)
+	}
+
+	if err := s.ReleaseTurn(context.Background(), res); err != nil {
+		t.Fatalf("ReleaseTurn: %v", err)
+	}
+
+	// Released unspent, so the room is free to use the turn — and nothing was
+	// recorded for the reservation itself.
+	if _, err := s.AppendMessage(context.Background(), tenantA, r.ID, m.ID, "after release"); err != nil {
+		t.Fatalf("AppendMessage after release: %v — the released turn was lost", err)
+	}
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Body != "after release" {
+		t.Errorf("transcript = %+v, want only the message posted after the release", msgs)
+	}
+}
+
+// Committing is unconditional by design. The side effect the reservation was
+// protecting has already happened — the message really was delivered to the
+// recipient's agent — so the transcript records it even if the room was
+// terminated or its budget exhausted while the delivery was in flight. A
+// delivered call the room denies would be the worse outcome.
+func TestCommitTurn_RecordsTheMessageEvenIfTheRoomTerminatedMeanwhile(t *testing.T) {
+	t.Parallel()
+
+	s := room.NewStore()
+	r, err := s.CreateRoomWithBudget(context.Background(), tenantA, "goal", 1)
+	if err != nil {
+		t.Fatalf("CreateRoomWithBudget: %v", err)
+	}
+	sender, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	recipient, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_recipient", tenantA, nil)
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	res, err := s.ReserveTurn(context.Background(), tenantA, r.ID, room.PendingMessage{
+		MemberID:   sender.ID,
+		ToMemberID: recipient.ID,
+		Body:       "delivered",
+	})
+	if err != nil {
+		t.Fatalf("ReserveTurn: %v", err)
+	}
+
+	// The room terminates while the call is in flight.
+	if _, err := s.CompleteRoom(context.Background(), tenantA, r.ID); err != nil {
+		t.Fatalf("CompleteRoom: %v", err)
+	}
+
+	msg, err := s.CommitTurn(context.Background(), res)
+	if err != nil {
+		t.Fatalf("CommitTurn: %v — a confirmed delivery was left out of the transcript", err)
+	}
+	if msg.ToMemberID != recipient.ID {
+		t.Errorf("ToMemberID = %q, want %q", msg.ToMemberID, recipient.ID)
+	}
+
+	msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+	if err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Body != "delivered" || msgs[0].ToMemberID != recipient.ID {
+		t.Errorf("transcript = %+v, want the delivered message with its recipient", msgs)
+	}
+}
+
+// A reservation is resolved exactly once. Resolving it twice would either
+// double-record a message or hand back a turn that is not held.
+func TestReservationResolvesOnlyOnce(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]func(s *room.Store, res *room.Reservation) error{
+		"commit then commit": func(s *room.Store, res *room.Reservation) error {
+			_, err := s.CommitTurn(context.Background(), res)
+			return err
+		},
+		"commit then release": func(s *room.Store, res *room.Reservation) error {
+			return s.ReleaseTurn(context.Background(), res)
+		},
+	}
+
+	for name, second := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			s := room.NewStore()
+			r := mustCreateRoom(t, s, tenantA, "goal")
+			m, err := s.AddMember(context.Background(), tenantA, r.ID, "agt_sender", tenantA, nil)
+			if err != nil {
+				t.Fatalf("AddMember: %v", err)
+			}
+			res, err := s.ReserveTurn(context.Background(), tenantA, r.ID, room.PendingMessage{MemberID: m.ID, Body: "once"})
+			if err != nil {
+				t.Fatalf("ReserveTurn: %v", err)
+			}
+			if _, err := s.CommitTurn(context.Background(), res); err != nil {
+				t.Fatalf("CommitTurn: %v", err)
+			}
+
+			if err := second(s, res); !errors.Is(err, room.ErrReservationNotHeld) {
+				t.Errorf("second resolution err = %v, want ErrReservationNotHeld", err)
+			}
+
+			msgs, err := s.Messages(context.Background(), tenantA, r.ID)
+			if err != nil {
+				t.Fatalf("Messages: %v", err)
+			}
+			if len(msgs) != 1 {
+				t.Errorf("transcript = %+v, want exactly one message", msgs)
 			}
 		})
 	}
