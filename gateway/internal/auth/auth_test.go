@@ -433,37 +433,40 @@ func TestMiddleware_MalformedScopeClaim(t *testing.T) {
 	}
 }
 
-// TestMiddleware_VerificationFailureDoesNotLogClaims drives a real token
-// through verification failure (audience mismatch, which go-oidc's error text
-// embeds the token's own "aud" claim to describe) and asserts the captured
-// log never contains that claim value — only a stable failure category. A
-// rejected token's claims are as sensitive as the token itself (AGENTS.md
-// invariant #4); the log line must still let an operator tell an audience
-// mismatch apart from other failures without being handed the value.
-func TestMiddleware_VerificationFailureDoesNotLogClaims(t *testing.T) {
+// TestMiddleware_ClassifiesVerificationFailures drives real tokens through
+// every verification failure mode classifyVerifyError recognizes and asserts
+// the log carries the expected stable category. For audience and issuer
+// mismatches, go-oidc's error text embeds the token's own claim value to
+// describe the mismatch; those cases also assert the captured log never
+// contains that value, since a rejected token's claims are as sensitive as
+// the token itself (AGENTS.md invariant #4).
+//
+// This test is pinned to the go-oidc version in go.mod: it exercises the
+// library's actual error text rather than synthetic strings, so a dependency
+// bump that rewords a message is caught here (the case falls through to
+// "unknown") instead of silently degrading log categories in production.
+func TestMiddleware_ClassifiesVerificationFailures(t *testing.T) {
 	t.Parallel()
 
 	srv := newTestOIDCServer(t)
 
 	const (
-		audience          = "test-audience"
-		tenantClaim       = "org_id"
-		userClaim         = "sub"
-		leakedAudienceTag = "leaked-aud-4f9c2e1b"
+		audience    = "test-audience"
+		tenantClaim = "org_id"
+		userClaim   = "sub"
+		leakTag     = "leaked-claim-4f9c2e1b"
 	)
 	now := time.Now()
 
-	claims := map[string]any{
-		"iss":       srv.URL,
-		"aud":       []string{leakedAudienceTag},
-		tenantClaim: "tenant-abc",
-		userClaim:   "user-xyz",
-		"exp":       now.Add(time.Hour).Unix(),
-		"iat":       now.Unix(),
-	}
-	tok, err := srv.mint(claims)
-	if err != nil {
-		t.Fatalf("mint wrong-audience token: %v", err)
+	baseClaims := func() map[string]any {
+		return map[string]any{
+			"iss":       srv.URL,
+			"aud":       []string{audience},
+			tenantClaim: "tenant-abc",
+			userClaim:   "user-xyz",
+			"exp":       now.Add(time.Hour).Unix(),
+			"iat":       now.Unix(),
+		}
 	}
 
 	cfg := auth.Config{
@@ -474,34 +477,131 @@ func TestMiddleware_VerificationFailureDoesNotLogClaims(t *testing.T) {
 		HTTPClient:  srv.Client(),
 	}
 
-	var logBuf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
-	mw, err := auth.NewMiddleware(context.Background(), cfg, logger)
-	if err != nil {
-		t.Fatalf("NewMiddleware: %v", err)
+	tests := []struct {
+		name         string
+		mint         func(t *testing.T) string
+		wantCategory string
+		leakedValue  string // if non-empty, asserted absent from the log
+	}{
+		{
+			name: "expired token",
+			mint: func(t *testing.T) string {
+				claims := cloneClaims(baseClaims())
+				claims["exp"] = now.Add(-time.Hour).Unix()
+				claims["iat"] = now.Add(-2 * time.Hour).Unix()
+				tok, err := srv.mint(claims)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "expired",
+		},
+		{
+			name: "audience mismatch",
+			mint: func(t *testing.T) string {
+				claims := cloneClaims(baseClaims())
+				claims["aud"] = []string{leakTag}
+				tok, err := srv.mint(claims)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "audience_mismatch",
+			leakedValue:  leakTag,
+		},
+		{
+			name: "issuer mismatch",
+			mint: func(t *testing.T) string {
+				claims := cloneClaims(baseClaims())
+				claims["iss"] = leakTag
+				tok, err := srv.mint(claims)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "issuer_mismatch",
+			leakedValue:  leakTag,
+		},
+		{
+			name: "token not yet valid",
+			mint: func(t *testing.T) string {
+				claims := cloneClaims(baseClaims())
+				claims["nbf"] = now.Add(time.Hour).Unix()
+				tok, err := srv.mint(claims)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "not_yet_valid",
+		},
+		{
+			name: "bad signature",
+			mint: func(t *testing.T) string {
+				badKey, err := rsa.GenerateKey(rand.Reader, 2048)
+				if err != nil {
+					t.Fatalf("generate bad key: %v", err)
+				}
+				tok, err := signedJWT(badKey, srv.keyID, baseClaims())
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "signature_invalid",
+		},
+		{
+			name: "unresolvable distributed claim source",
+			mint: func(t *testing.T) string {
+				claims := cloneClaims(baseClaims())
+				claims["_claim_names"] = map[string]string{"extra": ""}
+				tok, err := srv.mint(claims)
+				if err != nil {
+					t.Fatalf("mint: %v", err)
+				}
+				return tok
+			},
+			wantCategory: "claims_invalid",
+		},
 	}
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/agents", nil)
-	req.Header.Set("Authorization", "Bearer "+tok)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
-	}
-	if body := rec.Body.String(); body != "" {
-		t.Errorf("response body = %q, want empty", body)
-	}
+			var logBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+			mw, err := auth.NewMiddleware(context.Background(), cfg, logger)
+			if err != nil {
+				t.Fatalf("NewMiddleware: %v", err)
+			}
+			handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
 
-	logged := logBuf.String()
-	if strings.Contains(logged, leakedAudienceTag) {
-		t.Errorf("log contains the token's aud claim value; log:\n%s", logged)
-	}
-	if !strings.Contains(logged, "audience_mismatch") {
-		t.Errorf("log does not classify the failure as audience_mismatch; log:\n%s", logged)
+			req := httptest.NewRequest(http.MethodGet, "/v1/agents", nil)
+			req.Header.Set("Authorization", "Bearer "+tc.mint(t))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+			}
+			if body := rec.Body.String(); body != "" {
+				t.Errorf("response body = %q, want empty", body)
+			}
+
+			logged := logBuf.String()
+			if !strings.Contains(logged, tc.wantCategory) {
+				t.Errorf("log does not classify the failure as %s; log:\n%s", tc.wantCategory, logged)
+			}
+			if tc.leakedValue != "" && strings.Contains(logged, tc.leakedValue) {
+				t.Errorf("log contains the token's claim value %q; log:\n%s", tc.leakedValue, logged)
+			}
+		})
 	}
 }
 
