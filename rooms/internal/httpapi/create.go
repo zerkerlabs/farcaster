@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
-	"github.com/zerkerlabs/farcaster/rooms/internal/tenant"
 )
 
 // createRoomRequest is the request body for POST /v1/rooms.
@@ -17,7 +17,7 @@ type createRoomRequest struct {
 }
 
 func (h *Handler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenant.FromContext(r.Context())
+	tenantID := auth.TenantFromContext(r.Context())
 	if tenantID == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

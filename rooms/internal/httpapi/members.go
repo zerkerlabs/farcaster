@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
-	"github.com/zerkerlabs/farcaster/rooms/internal/tenant"
 )
 
 // addMemberRequest is the request body for POST /v1/rooms/{rom_id}/members.
@@ -24,7 +24,7 @@ type addMemberRequest struct {
 // the proxy client), so the added agent is assumed to belong to the caller's
 // own tenant, same as the room it joins.
 func (h *Handler) handleAddMember(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenant.FromContext(r.Context())
+	tenantID := auth.TenantFromContext(r.Context())
 	if tenantID == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

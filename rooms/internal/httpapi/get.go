@@ -4,12 +4,12 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
-	"github.com/zerkerlabs/farcaster/rooms/internal/tenant"
 )
 
 func (h *Handler) handleGetRoom(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenant.FromContext(r.Context())
+	tenantID := auth.TenantFromContext(r.Context())
 	if tenantID == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
