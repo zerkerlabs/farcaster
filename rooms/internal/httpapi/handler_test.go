@@ -16,6 +16,7 @@ import (
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
+	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
@@ -87,7 +88,10 @@ func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (http.Handler, *ro
 }
 
 // newMuxWithMemoryAndGateway is newMuxWithMemory with a caller-supplied
-// httpapi.GatewayCaller, for tests exercising addressed-message delivery.
+// httpapi.GatewayCaller, for tests exercising addressed-message delivery. It
+// backs the handler with a fresh receipt.Fake that no test here inspects —
+// tests that need to observe or override receipt emission use
+// newMuxWithReceipts instead.
 //
 // The router is wrapped in the same middleware main.go wraps it in, so every
 // handler test reaches its handler by presenting a real bearer token — the
@@ -95,11 +99,21 @@ func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (http.Handler, *ro
 // wrote onto the context directly.
 func newMuxWithMemoryAndGateway(t *testing.T, memoryStore memory.Store, gatewayClient httpapi.GatewayCaller) (http.Handler, *room.Store) {
 	t.Helper()
+	mux, store, _ := newMuxWithReceipts(t, memoryStore, gatewayClient, receipt.NewFake())
+	return mux, store
+}
+
+// newMuxWithReceipts is newMuxWithMemoryAndGateway with a caller-supplied
+// receipt.Emitter, for tests that observe what an addressed message emits or
+// exercise the async fail-open emission behaviour. It also returns the
+// *httpapi.Handler itself so a test can call Shutdown.
+func newMuxWithReceipts(t *testing.T, memoryStore memory.Store, gatewayClient httpapi.GatewayCaller, emitter receipt.Emitter) (http.Handler, *room.Store, *httpapi.Handler) {
+	t.Helper()
 	store := room.NewStore()
-	h := httpapi.NewHandler(store, memoryStore, gatewayClient, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := httpapi.NewHandler(store, memoryStore, gatewayClient, emitter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
-	return authMiddleware(mux), store
+	return authMiddleware(mux), store, h
 }
 
 // requestAs returns a request to path with body, authenticated as tenantID

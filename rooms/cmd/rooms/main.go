@@ -28,6 +28,7 @@ import (
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
+	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 	"github.com/zerkerlabs/farcaster/rooms/internal/version"
 )
@@ -62,7 +63,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("init gateway client: %w", err)
 	}
 
-	handler, err := newHandler(logger, gwClient)
+	handler, roomHandler, err := newHandler(logger, gwClient)
 	if err != nil {
 		return err
 	}
@@ -90,7 +91,13 @@ func run(logger *slog.Logger) error {
 		logger.Info("rooms: shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		return srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		// Draining in-flight requests above does not by itself drain the
+		// detached receipt-emission goroutines those requests spawned — that
+		// is roomHandler.Shutdown's job, so none outlives the process.
+		return roomHandler.Shutdown(shutdownCtx)
 	}
 }
 
@@ -104,31 +111,41 @@ func run(logger *slog.Logger) error {
 // issuer or audience is unset (ROOMS_OIDC_ISSUER, ROOMS_OIDC_AUDIENCE), so a
 // misconfigured deployment refuses to come up rather than serving rooms
 // unprotected (AGENTS.md invariant #1).
-func newHandler(logger *slog.Logger, gwClient httpapi.GatewayCaller) (http.Handler, error) {
+//
+// The *httpapi.Handler is also returned so the caller can drain its receipt-
+// emission goroutines on shutdown (Handler.Shutdown) — the auth-wrapped
+// http.Handler above does not expose it.
+func newHandler(logger *slog.Logger, gwClient httpapi.GatewayCaller) (http.Handler, *httpapi.Handler, error) {
 	// context.Background, not the shutdown context: go-oidc keeps this context
 	// for background JWKS refreshes, and one cancelled at SIGTERM would break
 	// key rotation for the lifetime of the process instead.
 	mw, err := auth.NewMiddleware(context.Background(), auth.ConfigFromEnv(), logger)
 	if err != nil {
-		return nil, fmt.Errorf("init auth middleware: %w", err)
+		return nil, nil, fmt.Errorf("init auth middleware: %w", err)
 	}
-	return mw(newMux(logger, gwClient)), nil
+	mux, roomHandler := newMux(logger, gwClient)
+	return mw(mux), roomHandler, nil
 }
 
 // newMux builds the router. The four room routes derive their tenant from the
 // validated token claims the auth middleware puts on the request context; the
 // operational routes are the only ones the middleware lets through
 // unauthenticated (AGENTS.md invariant #1).
-func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux {
+//
+// It also returns the *httpapi.Handler it registered, so a caller that needs
+// it for shutdown draining does not have to reach back into the mux.
+func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) (*http.ServeMux, *httpapi.Handler) {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /version", versionHandler())
 
-	// memory.NewFake is a stand-in for the real memory backend, which does not
-	// exist yet (rooms/internal/memory); a real client wires in here later
-	// without changing the httpapi.Handler seam.
-	httpapi.NewHandler(room.NewStore(), memory.NewFake(), gwClient, logger).RegisterRoutes(mux)
-	return mux
+	// memory.NewFake and receipt.NewFake are stand-ins for the real memory and
+	// receipt backends, neither of which exists yet (rooms/internal/memory,
+	// rooms/internal/receipt); real clients wire in here later without
+	// changing the httpapi.Handler seam.
+	roomHandler := httpapi.NewHandler(room.NewStore(), memory.NewFake(), gwClient, receipt.NewFake(), logger)
+	roomHandler.RegisterRoutes(mux)
+	return mux, roomHandler
 }
 
 // gatewayConfigFromEnv builds the gateway client's config from environment

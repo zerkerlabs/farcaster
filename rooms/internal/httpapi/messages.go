@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
+	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
@@ -230,6 +232,16 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 		if err := h.store.RecordDelivery(recordCtx, tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, result.InvocationID); err != nil {
 			h.logger.Error("post message: record delivery", "err", err)
 		}
+		h.emitReceipt(receipt.Receipt{
+			RoomID:       roomID,
+			TenantID:     tenantID,
+			FromMemberID: req.MemberID,
+			ToMemberID:   req.ToMemberID,
+			ToAgentID:    toAgentID,
+			InvocationID: result.InvocationID,
+			Outcome:      receipt.OutcomeSucceeded,
+			OccurredAt:   time.Now().UTC(),
+		})
 		return true
 	}
 
@@ -241,6 +253,16 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 	if err := h.store.RecordDeliveryFailure(recordCtx, tenantID, roomID, req.MemberID, req.ToMemberID, toAgentID, string(class)); err != nil {
 		h.logger.Error("post message: record delivery failure", "err", err)
 	}
+	h.emitReceipt(receipt.Receipt{
+		RoomID:       roomID,
+		TenantID:     tenantID,
+		FromMemberID: req.MemberID,
+		ToMemberID:   req.ToMemberID,
+		ToAgentID:    toAgentID,
+		Outcome:      receipt.OutcomeFailed,
+		FailureClass: string(class),
+		OccurredAt:   time.Now().UTC(),
+	})
 
 	// The gateway's response is classified, never forwarded: a non-2xx body
 	// must never leak into the room transcript or this API response
@@ -264,4 +286,31 @@ func (h *Handler) deliverToMember(w http.ResponseWriter, r *http.Request, tenant
 		writeError(w, http.StatusBadGateway, "message could not be delivered: gateway upstream failure")
 	}
 	return false
+}
+
+// receiptEmitTimeout bounds a single receipt emission so a slow or hanging
+// backend can't pin a goroutine indefinitely, or past Shutdown's drain
+// window.
+const receiptEmitTimeout = 10 * time.Second
+
+// emitReceipt records one cross-agent interaction — an addressed message's
+// proxied call, whether it succeeded or failed — through the receipt seam.
+// Emission is asynchronous and fail-open: it never delays or fails the room
+// operation it describes, and a failing or hanging emitter only produces a
+// log line. The goroutine is tracked in h.emitWG so Shutdown can drain it
+// rather than letting it outlive the service; its context derives from
+// h.shutdownCtx so Shutdown cancels a still-running emission promptly
+// instead of waiting out its full timeout.
+func (h *Handler) emitReceipt(r receipt.Receipt) {
+	h.emitWG.Add(1)
+	go func() {
+		defer h.emitWG.Done()
+
+		ctx, cancel := context.WithTimeout(h.shutdownCtx, receiptEmitTimeout)
+		defer cancel()
+		if err := h.emitter.Emit(ctx, r); err != nil {
+			h.logger.Warn("receipt emission failed (fail-open)",
+				"room_id", r.RoomID, "invocation_id", r.InvocationID, "outcome", r.Outcome, "err", err)
+		}
+	}()
 }

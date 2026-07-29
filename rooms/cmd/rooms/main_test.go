@@ -29,7 +29,7 @@ func TestOperationalRoutes(t *testing.T) {
 
 	// The operational route tests never exercise message delivery, so a nil
 	// gateway client (never called) is fine here.
-	mux := newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	mux, _ := newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -77,7 +77,7 @@ func TestHandlerRequiresBearerTokenForRoomRoutes(t *testing.T) {
 
 	// Nil gateway client: no test here posts an addressed message, the only
 	// path that calls it.
-	handler, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	handler, _, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	if err != nil {
 		t.Fatalf("newHandler: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestNewHandlerFailsWithoutOIDCConfig(t *testing.T) {
 	t.Setenv("ROOMS_OIDC_ISSUER", "")
 	t.Setenv("ROOMS_OIDC_AUDIENCE", "")
 
-	if _, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil); err == nil {
+	if _, _, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil); err == nil {
 		t.Fatal("newHandler with no OIDC config: want error, got nil")
 	}
 }
@@ -137,8 +137,9 @@ func TestNewHandlerFailsWithoutOIDCConfig(t *testing.T) {
 func TestVersionExposesOnlyBuildMetadata(t *testing.T) {
 	t.Parallel()
 
+	mux, _ := newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	rec := httptest.NewRecorder()
-	newMux(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/version", nil))
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/version", nil))
 
 	var body map[string]string
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
