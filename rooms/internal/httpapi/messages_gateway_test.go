@@ -354,14 +354,22 @@ func TestHandlePostMessage_ConcurrentPostCannotStealAnInFlightTurn(t *testing.T)
 			map[string]any{"member_id": memberID, "to_member_id": recipient.ID, "body": "delivered"}, tenantA))
 	}()
 
-	<-delivering // the call is out; its turn is reserved but not yet spent
+	select {
+	case <-delivering: // the call is out; its turn is reserved but not yet spent
+	case <-time.After(2 * time.Second):
+		t.Fatal("addressed request never reached the gateway stub within 2s")
+	}
 
 	concurrent := httptest.NewRecorder()
 	mux.ServeHTTP(concurrent, requestAs(t, http.MethodPost, "/v1/rooms/"+roomID+"/messages",
 		map[string]any{"member_id": memberID, "body": "sneaking in"}, tenantA))
 
 	close(release)
-	<-done
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("addressed request did not complete within 2s of releasing the gateway stub")
+	}
 
 	if concurrent.Code != http.StatusConflict {
 		t.Errorf("concurrent post status = %d, want %d — it took the turn an in-flight delivery was holding; body = %s",
