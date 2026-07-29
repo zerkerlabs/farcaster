@@ -2,130 +2,24 @@ package auth_test
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"io"
 	"log/slog"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth/authtest"
 )
-
-// testOIDCServer is a minimal in-process OIDC provider: it exposes an
-// OpenID Configuration discovery endpoint and a JWKS endpoint backed by a
-// generated RSA key pair. It mirrors the gateway's own test OIDC server
-// (gateway/internal/auth/auth_test.go), since Rooms validates tokens the same
-// way the gateway does but cannot import its test helpers across a module
-// boundary.
-type testOIDCServer struct {
-	*httptest.Server
-	key   *rsa.PrivateKey
-	keyID string
-}
-
-func newTestOIDCServer(t *testing.T) *testOIDCServer {
-	t.Helper()
-
-	const keyID = "test-key-1"
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("generate RSA key: %v", err)
-	}
-
-	var serverURL string
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		doc := map[string]string{
-			"issuer":   serverURL,
-			"jwks_uri": serverURL + "/jwks.json",
-		}
-		if encErr := json.NewEncoder(w).Encode(doc); encErr != nil {
-			http.Error(w, "encode error", http.StatusInternalServerError)
-		}
-	})
-	mux.HandleFunc("GET /jwks.json", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		body := map[string]any{
-			"keys": []any{rsaJWK(keyID, &key.PublicKey)},
-		}
-		if encErr := json.NewEncoder(w).Encode(body); encErr != nil {
-			http.Error(w, "encode error", http.StatusInternalServerError)
-		}
-	})
-
-	srv := httptest.NewServer(mux)
-	serverURL = srv.URL
-	t.Cleanup(srv.Close)
-
-	return &testOIDCServer{Server: srv, key: key, keyID: keyID}
-}
-
-func (s *testOIDCServer) mint(claims map[string]any) (string, error) {
-	return signedJWT(s.key, s.keyID, claims)
-}
-
-func signedJWT(key *rsa.PrivateKey, kid string, claims map[string]any) (string, error) {
-	header, err := json.Marshal(map[string]string{
-		"alg": "RS256",
-		"kid": kid,
-		"typ": "JWT",
-	})
-	if err != nil {
-		return "", err
-	}
-
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
-
-	headerEnc := base64.RawURLEncoding.EncodeToString(header)
-	payloadEnc := base64.RawURLEncoding.EncodeToString(payload)
-	sigInput := headerEnc + "." + payloadEnc
-
-	h := sha256.Sum256([]byte(sigInput))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, h[:])
-	if err != nil {
-		return "", err
-	}
-
-	return sigInput + "." + base64.RawURLEncoding.EncodeToString(sig), nil
-}
-
-func rsaJWK(kid string, pub *rsa.PublicKey) map[string]any {
-	return map[string]any{
-		"kty": "RSA",
-		"kid": kid,
-		"use": "sig",
-		"alg": "RS256",
-		"n":   base64.RawURLEncoding.EncodeToString(pub.N.Bytes()),
-		"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pub.E)).Bytes()),
-	}
-}
-
-func cloneClaims(src map[string]any) map[string]any {
-	dst := make(map[string]any, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
-}
 
 func TestNewMiddleware(t *testing.T) {
 	t.Parallel()
 
-	srv := newTestOIDCServer(t)
+	srv := authtest.New()
+	t.Cleanup(srv.Close)
 
 	badKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -140,16 +34,7 @@ func TestNewMiddleware(t *testing.T) {
 		testUser    = "user-xyz"
 	)
 
-	now := time.Now()
-
-	validClaims := map[string]any{
-		"iss":       srv.URL,
-		"aud":       []string{audience},
-		tenantClaim: testTenant,
-		userClaim:   testUser,
-		"exp":       now.Add(time.Hour).Unix(),
-		"iat":       now.Unix(),
-	}
+	validClaims := srv.Claims(audience, tenantClaim, testTenant, userClaim, testUser)
 
 	cfg := auth.Config{
 		IssuerURL:   srv.URL,
@@ -173,44 +58,46 @@ func TestNewMiddleware(t *testing.T) {
 
 	handler := mw(downstream)
 
-	validTok, err := srv.mint(validClaims)
+	validTok, err := srv.Mint(validClaims)
 	if err != nil {
 		t.Fatalf("mint valid token: %v", err)
 	}
 
-	expiredClaims := cloneClaims(validClaims)
+	now := time.Now()
+
+	expiredClaims := authtest.CloneClaims(validClaims)
 	expiredClaims["exp"] = now.Add(-time.Hour).Unix()
 	expiredClaims["iat"] = now.Add(-2 * time.Hour).Unix()
-	expiredTok, err := srv.mint(expiredClaims)
+	expiredTok, err := srv.Mint(expiredClaims)
 	if err != nil {
 		t.Fatalf("mint expired token: %v", err)
 	}
 
-	wrongAudClaims := cloneClaims(validClaims)
+	wrongAudClaims := authtest.CloneClaims(validClaims)
 	wrongAudClaims["aud"] = []string{"wrong-audience"}
-	wrongAudTok, err := srv.mint(wrongAudClaims)
+	wrongAudTok, err := srv.Mint(wrongAudClaims)
 	if err != nil {
 		t.Fatalf("mint wrong-audience token: %v", err)
 	}
 
-	// Token is signed with badKey but claims srv.keyID as the kid. go-oidc
+	// Token is signed with badKey but claims authtest.KeyID as the kid. go-oidc
 	// fetches the key for that kid (the valid public key) and the signature
 	// check fails because the signing key does not match.
-	badSigTok, err := signedJWT(badKey, srv.keyID, validClaims)
+	badSigTok, err := authtest.SignJWT(badKey, authtest.KeyID, validClaims)
 	if err != nil {
 		t.Fatalf("mint bad-signature token: %v", err)
 	}
 
-	noTenantClaims := cloneClaims(validClaims)
+	noTenantClaims := authtest.CloneClaims(validClaims)
 	delete(noTenantClaims, tenantClaim)
-	noTenantTok, err := srv.mint(noTenantClaims)
+	noTenantTok, err := srv.Mint(noTenantClaims)
 	if err != nil {
 		t.Fatalf("mint no-tenant token: %v", err)
 	}
 
-	noUserClaims := cloneClaims(validClaims)
+	noUserClaims := authtest.CloneClaims(validClaims)
 	delete(noUserClaims, userClaim)
-	noUserTok, err := srv.mint(noUserClaims)
+	noUserTok, err := srv.Mint(noUserClaims)
 	if err != nil {
 		t.Fatalf("mint no-user token: %v", err)
 	}
