@@ -433,6 +433,78 @@ func TestMiddleware_MalformedScopeClaim(t *testing.T) {
 	}
 }
 
+// TestMiddleware_VerificationFailureDoesNotLogClaims drives a real token
+// through verification failure (audience mismatch, which go-oidc's error text
+// embeds the token's own "aud" claim to describe) and asserts the captured
+// log never contains that claim value — only a stable failure category. A
+// rejected token's claims are as sensitive as the token itself (AGENTS.md
+// invariant #4); the log line must still let an operator tell an audience
+// mismatch apart from other failures without being handed the value.
+func TestMiddleware_VerificationFailureDoesNotLogClaims(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestOIDCServer(t)
+
+	const (
+		audience          = "test-audience"
+		tenantClaim       = "org_id"
+		userClaim         = "sub"
+		leakedAudienceTag = "leaked-aud-4f9c2e1b"
+	)
+	now := time.Now()
+
+	claims := map[string]any{
+		"iss":       srv.URL,
+		"aud":       []string{leakedAudienceTag},
+		tenantClaim: "tenant-abc",
+		userClaim:   "user-xyz",
+		"exp":       now.Add(time.Hour).Unix(),
+		"iat":       now.Unix(),
+	}
+	tok, err := srv.mint(claims)
+	if err != nil {
+		t.Fatalf("mint wrong-audience token: %v", err)
+	}
+
+	cfg := auth.Config{
+		IssuerURL:   srv.URL,
+		Audience:    audience,
+		TenantClaim: tenantClaim,
+		UserClaim:   userClaim,
+		HTTPClient:  srv.Client(),
+	}
+
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+	mw, err := auth.NewMiddleware(context.Background(), cfg, logger)
+	if err != nil {
+		t.Fatalf("NewMiddleware: %v", err)
+	}
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/agents", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if body := rec.Body.String(); body != "" {
+		t.Errorf("response body = %q, want empty", body)
+	}
+
+	logged := logBuf.String()
+	if strings.Contains(logged, leakedAudienceTag) {
+		t.Errorf("log contains the token's aud claim value; log:\n%s", logged)
+	}
+	if !strings.Contains(logged, "audience_mismatch") {
+		t.Errorf("log does not classify the failure as audience_mismatch; log:\n%s", logged)
+	}
+}
+
 func TestContextAccessors_EmptyContext(t *testing.T) {
 	t.Parallel()
 

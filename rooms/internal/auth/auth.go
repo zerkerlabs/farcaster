@@ -10,6 +10,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -129,7 +130,7 @@ func NewMiddleware(ctx context.Context, cfg Config, logger *slog.Logger) (func(h
 			idToken, err := verifier.Verify(r.Context(), raw)
 			if err != nil {
 				logger.Warn("auth: token verification failed",
-					"method", r.Method, "path", path, "err", err)
+					"method", r.Method, "path", path, "reason", classifyVerifyError(err))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -172,6 +173,46 @@ func bearerToken(r *http.Request) (string, bool) {
 		return "", false
 	}
 	return tok, true
+}
+
+// classifyVerifyError maps a go-oidc verification error to a stable category
+// safe to log. go-oidc's errors are library-formatted text, and for some
+// failure modes (audience mismatch, issuer mismatch) that text embeds the
+// token's own claim values — logging err.Error() directly would write a
+// rejected token's claims to the log, which is a credential leak (AGENTS.md
+// invariant #4) just like logging the token itself. The category is enough to
+// operate the service; the claim value is not needed and must never be
+// logged.
+//
+// This function is duplicated in gateway/internal/auth/auth.go (see this
+// package's comment for why rooms cannot import that package). Keep the two
+// in lockstep: a category added here belongs there too, and vice versa.
+func classifyVerifyError(err error) string {
+	var expired *oidc.TokenExpiredError
+	if errors.As(err, &expired) {
+		return "expired"
+	}
+
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "expected audience"):
+		return "audience_mismatch"
+	case strings.Contains(msg, "issued by a different provider"):
+		return "issuer_mismatch"
+	case strings.Contains(msg, "before the nbf"):
+		return "not_yet_valid"
+	case strings.Contains(msg, "failed to verify signature"),
+		strings.Contains(msg, "malformed jwt"),
+		strings.Contains(msg, "id token not signed"),
+		strings.Contains(msg, "multiple signatures"):
+		return "signature_invalid"
+	case strings.Contains(msg, "failed to unmarshal claims"),
+		strings.Contains(msg, "failed to obtain source from claim name"),
+		strings.Contains(msg, "source does not exist"):
+		return "claims_invalid"
+	default:
+		return "unknown"
+	}
 }
 
 func envOrDefault(key, def string) string {
