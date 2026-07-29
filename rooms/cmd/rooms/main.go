@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
@@ -61,9 +62,14 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("init gateway client: %w", err)
 	}
 
+	handler, err := newHandler(logger, gwClient)
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(logger, gwClient),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -88,10 +94,31 @@ func run(logger *slog.Logger) error {
 	}
 }
 
-// newMux builds the router. Only the operational routes are unauthenticated
-// (AGENTS.md invariant #1). The four room routes are tenant-scoped through
-// the tenant context seam (rooms/internal/tenant); bearer-token
-// authentication that populates it lands separately.
+// newHandler builds what the server actually serves: the router behind the
+// bearer-token middleware. Wrapping the whole router — rather than the room
+// routes alone — is what makes authentication the default; the middleware
+// exempts /healthz and /version itself, so those stay reachable, and any route
+// added later is authenticated unless someone deliberately exempts it.
+//
+// Authentication is required to start: auth.NewMiddleware fails when the OIDC
+// issuer or audience is unset (ROOMS_OIDC_ISSUER, ROOMS_OIDC_AUDIENCE), so a
+// misconfigured deployment refuses to come up rather than serving rooms
+// unprotected (AGENTS.md invariant #1).
+func newHandler(logger *slog.Logger, gwClient httpapi.GatewayCaller) (http.Handler, error) {
+	// context.Background, not the shutdown context: go-oidc keeps this context
+	// for background JWKS refreshes, and one cancelled at SIGTERM would break
+	// key rotation for the lifetime of the process instead.
+	mw, err := auth.NewMiddleware(context.Background(), auth.ConfigFromEnv(), logger)
+	if err != nil {
+		return nil, fmt.Errorf("init auth middleware: %w", err)
+	}
+	return mw(newMux(logger, gwClient)), nil
+}
+
+// newMux builds the router. The four room routes derive their tenant from the
+// validated token claims the auth middleware puts on the request context; the
+// operational routes are the only ones the middleware lets through
+// unauthenticated (AGENTS.md invariant #1).
 func newMux(logger *slog.Logger, gwClient httpapi.GatewayCaller) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth/authtest"
 )
 
 func TestOperationalRoutes(t *testing.T) {
@@ -52,6 +54,80 @@ func TestOperationalRoutes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// The room routes are only protected if the middleware is actually wired into
+// what the server serves. Handler and middleware tests both pass with a
+// perfectly good auth package that main.go never calls, so this exercises the
+// composed handler: an unauthenticated room request must be refused, while the
+// operational routes stay reachable.
+func TestHandlerRequiresBearerTokenForRoomRoutes(t *testing.T) {
+	oidc := authtest.New()
+	t.Cleanup(oidc.Close)
+
+	const (
+		audience    = "rooms-test-audience"
+		tenantClaim = "org_id"
+	)
+
+	t.Setenv("ROOMS_OIDC_ISSUER", oidc.URL)
+	t.Setenv("ROOMS_OIDC_AUDIENCE", audience)
+	t.Setenv("ROOMS_OIDC_TENANT_CLAIM", tenantClaim)
+
+	// Nil gateway client: no test here posts an addressed message, the only
+	// path that calls it.
+	handler, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	if err != nil {
+		t.Fatalf("newHandler: %v", err)
+	}
+
+	token, err := oidc.Mint(oidc.Claims(audience, tenantClaim, "tenant-alpha", "sub", "user-xyz"))
+	if err != nil {
+		t.Fatalf("mint token: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		method   string
+		path     string
+		token    string
+		wantCode int
+	}{
+		{"room route without a token is refused", http.MethodPost, "/v1/rooms", "", http.StatusUnauthorized},
+		{"room route with a garbage token is refused", http.MethodPost, "/v1/rooms", "notavalidjwt", http.StatusUnauthorized},
+		{"room route with a valid token reaches the handler", http.MethodPost, "/v1/rooms", token, http.StatusBadRequest},
+		{"healthz stays open", http.MethodGet, "/healthz", "", http.StatusOK},
+		{"version stays open", http.MethodGet, "/version", "", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			if tt.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tt.token)
+			}
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			// The valid-token case sends no body, so 400 from the handler is
+			// the tell that authentication passed and the request got through.
+			if rec.Code != tt.wantCode {
+				t.Errorf("status = %d, want %d", rec.Code, tt.wantCode)
+			}
+		})
+	}
+}
+
+// Rooms must not start without authentication configured: an operator who
+// forgets the OIDC variables gets a failed start, never an open server.
+func TestNewHandlerFailsWithoutOIDCConfig(t *testing.T) {
+	t.Setenv("ROOMS_OIDC_ISSUER", "")
+	t.Setenv("ROOMS_OIDC_AUDIENCE", "")
+
+	if _, err := newHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), nil); err == nil {
+		t.Fatal("newHandler with no OIDC config: want error, got nil")
 	}
 }
 

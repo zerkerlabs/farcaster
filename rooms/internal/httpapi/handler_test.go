@@ -8,19 +8,57 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
+	"github.com/zerkerlabs/farcaster/rooms/internal/auth/authtest"
 	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
 	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
 	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
-	"github.com/zerkerlabs/farcaster/rooms/internal/tenant"
 )
 
 const (
 	tenantA = "tenant-alpha"
 	tenantB = "tenant-beta"
+
+	// testAudience, tenantClaim, and userClaim are the OIDC parameters every
+	// handler test's tokens and middleware agree on.
+	testAudience = "rooms-test-audience"
+	tenantClaim  = "org_id"
+	userClaim    = "sub"
 )
+
+// oidc issues the tokens handler tests authenticate with, and authMiddleware
+// validates them exactly as the server does. Both are per-package rather than
+// per-test: an RSA keypair and OIDC discovery per mux would dominate the
+// runtime of a suite that builds one for nearly every case.
+var (
+	oidc           *authtest.Server
+	authMiddleware func(http.Handler) http.Handler
+)
+
+func TestMain(m *testing.M) {
+	oidc = authtest.New()
+
+	mw, err := auth.NewMiddleware(context.Background(), auth.Config{
+		IssuerURL:   oidc.URL,
+		Audience:    testAudience,
+		TenantClaim: tenantClaim,
+		UserClaim:   userClaim,
+		HTTPClient:  oidc.Client(),
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		oidc.Close()
+		panic("init auth middleware: " + err.Error())
+	}
+	authMiddleware = mw
+
+	code := m.Run()
+	oidc.Close()
+	os.Exit(code)
+}
 
 // unreachableGateway is a httpapi.GatewayCaller for tests that never exercise
 // addressed messaging: any call fails the test loudly rather than silently
@@ -33,36 +71,53 @@ func (g unreachableGateway) Call(_ context.Context, _, agentID string, _ []byte)
 	return nil, nil
 }
 
-// newMux returns a mux serving the four v1 room routes, backed by a fresh
-// in-memory room store and a fresh in-memory memory store.
-func newMux(t *testing.T) (*http.ServeMux, *room.Store) {
+// newMux returns a handler serving the four v1 room routes behind the real
+// auth middleware, backed by a fresh in-memory room store and a fresh
+// in-memory memory store.
+func newMux(t *testing.T) (http.Handler, *room.Store) {
 	t.Helper()
 	return newMuxWithMemory(t, memory.NewFake())
 }
 
 // newMuxWithMemory is newMux with a caller-supplied memory.Store, for tests
 // that need to seed onboarding entries or exercise a failing memory backend.
-func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (*http.ServeMux, *room.Store) {
+func newMuxWithMemory(t *testing.T, memoryStore memory.Store) (http.Handler, *room.Store) {
 	t.Helper()
 	return newMuxWithMemoryAndGateway(t, memoryStore, unreachableGateway{t})
 }
 
 // newMuxWithMemoryAndGateway is newMuxWithMemory with a caller-supplied
 // httpapi.GatewayCaller, for tests exercising addressed-message delivery.
-func newMuxWithMemoryAndGateway(t *testing.T, memoryStore memory.Store, gatewayClient httpapi.GatewayCaller) (*http.ServeMux, *room.Store) {
+//
+// The router is wrapped in the same middleware main.go wraps it in, so every
+// handler test reaches its handler by presenting a real bearer token — the
+// tenant a handler sees is the one a signed token asserted, never one a test
+// wrote onto the context directly.
+func newMuxWithMemoryAndGateway(t *testing.T, memoryStore memory.Store, gatewayClient httpapi.GatewayCaller) (http.Handler, *room.Store) {
 	t.Helper()
 	store := room.NewStore()
 	h := httpapi.NewHandler(store, memoryStore, gatewayClient, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
-	return mux, store
+	return authMiddleware(mux), store
 }
 
-// requestAs returns a request to path with body, carrying tenantID on its
-// context as the tenant seam would once auth lands. A nil body sends no
-// request body; a []byte body is sent raw (for malformed-JSON cases); any
-// other value is JSON-marshaled.
+// requestAs returns a request to path with body, authenticated as tenantID
+// with a freshly minted bearer token. An empty tenantID sends no Authorization
+// header, which the middleware refuses. A nil body sends no request body; a
+// []byte body is sent raw (for malformed-JSON cases); any other value is
+// JSON-marshaled.
 func requestAs(t *testing.T, method, path string, body any, tenantID string) *http.Request {
+	t.Helper()
+	req := request(t, method, path, body)
+	if tenantID != "" {
+		req.Header.Set("Authorization", "Bearer "+mintToken(t, oidc.Claims(testAudience, tenantClaim, tenantID, userClaim, "user-"+tenantID)))
+	}
+	return req
+}
+
+// request builds an unauthenticated request; requestAs adds the token.
+func request(t *testing.T, method, path string, body any) *http.Request {
 	t.Helper()
 	var rdr io.Reader
 	switch b := body.(type) {
@@ -79,10 +134,17 @@ func requestAs(t *testing.T, method, path string, body any, tenantID string) *ht
 	}
 	req := httptest.NewRequest(method, path, rdr)
 	req.Header.Set("Content-Type", "application/json")
-	if tenantID != "" {
-		req = req.WithContext(tenant.WithTenant(req.Context(), tenantID))
-	}
 	return req
+}
+
+// mintToken signs claims with the test OIDC server's key.
+func mintToken(t *testing.T, claims map[string]any) string {
+	t.Helper()
+	tok, err := oidc.Mint(claims)
+	if err != nil {
+		t.Fatalf("mint token: %v", err)
+	}
+	return tok
 }
 
 func decodeBody(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
