@@ -394,10 +394,13 @@ func TestNewMiddleware_MissingConfig(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	if _, err := auth.NewMiddleware(context.Background(), auth.Config{Audience: "aud"}, logger); err == nil {
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{Audience: "aud", TenantClaim: "org_id"}, logger); err == nil {
 		t.Error("NewMiddleware with no IssuerURL: want error, got nil")
 	}
-	if _, err := auth.NewMiddleware(context.Background(), auth.Config{IssuerURL: "http://example.invalid"}, logger); err == nil {
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{IssuerURL: "http://example.invalid", TenantClaim: "org_id"}, logger); err == nil {
 		t.Error("NewMiddleware with no Audience: want error, got nil")
+	}
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{IssuerURL: "http://example.invalid", Audience: "aud"}, logger); err == nil {
+		t.Error("NewMiddleware with no TenantClaim: want error, got nil")
 	}
 }

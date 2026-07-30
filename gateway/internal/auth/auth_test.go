@@ -332,6 +332,22 @@ func TestNewMiddleware(t *testing.T) {
 	}
 }
 
+func TestNewMiddleware_MissingConfig(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{Audience: "aud", TenantClaim: "org_id"}, logger); err == nil {
+		t.Error("NewMiddleware with no IssuerURL: want error, got nil")
+	}
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{IssuerURL: "http://example.invalid", TenantClaim: "org_id"}, logger); err == nil {
+		t.Error("NewMiddleware with no Audience: want error, got nil")
+	}
+	if _, err := auth.NewMiddleware(context.Background(), auth.Config{IssuerURL: "http://example.invalid", Audience: "aud"}, logger); err == nil {
+		t.Error("NewMiddleware with no TenantClaim: want error, got nil")
+	}
+}
+
 // TestMiddleware_MalformedScopeClaim verifies that when ScopeClaim points at a
 // claim whose value is neither a string nor an array (a likely operator
 // misconfiguration), the request still succeeds with zero scopes (fail-closed)
