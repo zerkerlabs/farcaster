@@ -1,7 +1,7 @@
-// Package httpapi implements the Rooms v1 HTTP API: the five routes that
-// create a room, read it back, seat a member, post a message, and read the
-// room's receipts. Each handler lives in its own file, following the shape
-// established in the gateway module's httpapi package.
+// Package httpapi implements the Rooms v1 HTTP API: the six routes that
+// create a room, read it back, seat a member, post a message, complete a
+// room, and read the room's receipts. Each handler lives in its own file,
+// following the shape established in the gateway module's httpapi package.
 package httpapi
 
 import (
@@ -89,12 +89,13 @@ func (h *Handler) Shutdown(ctx context.Context) error {
 	}
 }
 
-// RegisterRoutes mounts the five v1 room routes onto mux.
+// RegisterRoutes mounts the six v1 room routes onto mux.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/rooms", h.handleCreateRoom)
 	mux.HandleFunc("GET /v1/rooms/{rom_id}", h.handleGetRoom)
 	mux.HandleFunc("POST /v1/rooms/{rom_id}/members", h.handleAddMember)
 	mux.HandleFunc("POST /v1/rooms/{rom_id}/messages", h.handlePostMessage)
+	mux.HandleFunc("POST /v1/rooms/{rom_id}/complete", h.handleCompleteRoom)
 	mux.HandleFunc("GET /v1/rooms/{rom_id}/receipts", h.handleGetReceipts)
 }
 
