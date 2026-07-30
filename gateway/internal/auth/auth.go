@@ -28,7 +28,8 @@ const (
 
 // Config holds the OIDC validation parameters. All fields are
 // provider-agnostic; the concrete identity provider and the claim→identity
-// mapping are PO decisions (see the needs-po-decision section in the PR body).
+// mapping are operator configuration, set to match the identity provider
+// actually deployed.
 type Config struct {
 	// IssuerURL is the OIDC issuer base URL used for provider discovery.
 	// Environment variable: FARCASTER_OIDC_ISSUER
