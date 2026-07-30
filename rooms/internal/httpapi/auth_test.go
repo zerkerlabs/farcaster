@@ -79,6 +79,7 @@ func TestRoomRoutesRequireValidBearerToken(t *testing.T) {
 		{"get room", http.MethodGet, "/v1/rooms/" + r.ID, nil},
 		{"add member", http.MethodPost, "/v1/rooms/" + r.ID + "/members", map[string]any{"agent_id": "agt_x"}},
 		{"post message", http.MethodPost, "/v1/rooms/" + r.ID + "/messages", map[string]any{"member_id": "mem_x", "body": "hi"}},
+		{"get receipts", http.MethodGet, "/v1/rooms/" + r.ID + "/receipts", nil},
 	}
 
 	for _, route := range routes {
@@ -130,6 +131,7 @@ func TestRoomRoutesAcceptValidBearerToken(t *testing.T) {
 		{"get room", http.MethodGet, "/v1/rooms/" + r.ID, nil, http.StatusOK},
 		{"add member", http.MethodPost, "/v1/rooms/" + r.ID + "/members", map[string]any{"agent_id": "agt_y"}, http.StatusCreated},
 		{"post message", http.MethodPost, "/v1/rooms/" + r.ID + "/messages", map[string]any{"member_id": m.ID, "body": "hi"}, http.StatusCreated},
+		{"get receipts", http.MethodGet, "/v1/rooms/" + r.ID + "/receipts", nil, http.StatusOK},
 	}
 
 	for _, tt := range tests {

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"time"
 
+	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
@@ -76,4 +77,46 @@ func toMessageResponse(m *room.Message) messageResponse {
 		Body:       m.Body,
 		CreatedAt:  m.CreatedAt,
 	}
+}
+
+// receiptsResponse is the JSON representation of
+// GET /v1/rooms/{rom_id}/receipts: the receipts recorded for one room, oldest
+// first — the same order receipt.Emitter.ListByRoom returns them in.
+type receiptsResponse struct {
+	Receipts []receiptResponse `json:"receipts"`
+}
+
+// receiptResponse is the JSON representation of a receipt.Receipt.
+// TenantID is omitted: the route is tenant-scoped, so it is always the
+// caller's own and carries nothing a response needs to repeat. Nothing here
+// is a credential, a token, or message body content — the same rule receipt
+// emission already follows.
+type receiptResponse struct {
+	FromMemberID string    `json:"from_member_id"`
+	ToMemberID   string    `json:"to_member_id"`
+	ToAgentID    string    `json:"to_agent_id"`
+	InvocationID string    `json:"invocation_id,omitempty"`
+	Outcome      string    `json:"outcome"`
+	FailureClass string    `json:"failure_class,omitempty"`
+	OccurredAt   time.Time `json:"occurred_at"`
+}
+
+// toReceiptsResponse maps a room's receipts, in the order they are given, to
+// their JSON representation. It always returns a non-nil slice — even for a
+// room with no receipts — so the response encodes as an empty array, never
+// null.
+func toReceiptsResponse(receipts []receipt.Receipt) receiptsResponse {
+	out := make([]receiptResponse, len(receipts))
+	for i, r := range receipts {
+		out[i] = receiptResponse{
+			FromMemberID: r.FromMemberID,
+			ToMemberID:   r.ToMemberID,
+			ToAgentID:    r.ToAgentID,
+			InvocationID: r.InvocationID,
+			Outcome:      r.Outcome,
+			FailureClass: r.FailureClass,
+			OccurredAt:   r.OccurredAt,
+		}
+	}
+	return receiptsResponse{Receipts: out}
 }

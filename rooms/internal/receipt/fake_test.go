@@ -56,6 +56,34 @@ func TestFake_EmitRejectsAnAlreadyCancelledContext(t *testing.T) {
 	}
 }
 
+func TestFake_ListByRoomReflectsConcurrentEmits(t *testing.T) {
+	t.Parallel()
+
+	const n = 50
+	f := receipt.NewFake()
+
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := range n {
+		go func(i int) {
+			defer wg.Done()
+			r := receipt.Receipt{RoomID: "rom_1", TenantID: "tenant-a", Outcome: receipt.OutcomeSucceeded, OccurredAt: time.Now().UTC()}
+			if err := f.Emit(context.Background(), r); err != nil {
+				t.Errorf("Emit %d: %v", i, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	got, err := f.ListByRoom(context.Background(), "tenant-a", "rom_1")
+	if err != nil {
+		t.Fatalf("ListByRoom: %v", err)
+	}
+	if len(got) != n {
+		t.Errorf("len(got) = %d, want %d", len(got), n)
+	}
+}
+
 // TestFake_ConcurrentEmitDoesNotRace exercises the Fake's append path from
 // many goroutines at once; run with -race (make check's test target does).
 func TestFake_ConcurrentEmitDoesNotRace(t *testing.T) {

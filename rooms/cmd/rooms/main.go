@@ -8,7 +8,8 @@
 // invocation capture rather than reimplementing any of it.
 //
 // This entrypoint serves the operational routes plus the v1 room API: create
-// a room, read it back, seat a member, and post a message.
+// a room, read it back, seat a member, post a message, and read the room's
+// receipts.
 package main
 
 import (
@@ -127,7 +128,7 @@ func newHandler(logger *slog.Logger, gwClient httpapi.GatewayCaller) (http.Handl
 	return mw(mux), roomHandler, nil
 }
 
-// newMux builds the router. The four room routes derive their tenant from the
+// newMux builds the router. The five room routes derive their tenant from the
 // validated token claims the auth middleware puts on the request context; the
 // operational routes are the only ones the middleware lets through
 // unauthenticated (AGENTS.md invariant #1).

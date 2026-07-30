@@ -1,9 +1,9 @@
 // Package receipt defines the narrow interface Rooms needs against an
 // external, multi-party trust-receipt backend: emit one receipt for a
 // cross-agent interaction — who called whom, in which room, when, and how it
-// turned out. That is all Rooms consumes — this package does not design a
-// receipt product; there is no schema for signing, verification, or querying
-// past receipts here.
+// turned out — and read back the receipts recorded for a room. That is all
+// Rooms consumes — this package does not design a receipt product; there is
+// no schema for signing, verification, pagination, or filtering here.
 //
 // The real backend does not exist yet. This package therefore ships an
 // in-memory Fake behind the same Emitter interface so Rooms can be built and
@@ -56,11 +56,18 @@ type Receipt struct {
 	OccurredAt   time.Time
 }
 
-// Emitter delivers a Receipt to the trust backend. Implementations must be
-// safe for concurrent use. Emit may block (e.g. an HTTP round-trip), so
-// callers run it off the request path; the returned error is advisory
-// only — emission is fail-open, so a failed or slow emission must never fail
-// or delay the room operation it describes.
+// Emitter delivers a Receipt to the trust backend, and reads back the
+// receipts recorded for a room. Implementations must be safe for concurrent
+// use. Emit may block (e.g. an HTTP round-trip), so callers run it off the
+// request path; the returned error is advisory only — emission is fail-open,
+// so a failed or slow emission must never fail or delay the room operation it
+// describes.
 type Emitter interface {
 	Emit(ctx context.Context, r Receipt) error
+
+	// ListByRoom returns the receipts recorded for roomID within tenantID,
+	// oldest first. A room with no receipts returns an empty slice and a nil
+	// error — never an error. Implementations must never return a receipt
+	// belonging to a different tenant, even for the same room ID.
+	ListByRoom(ctx context.Context, tenantID, roomID string) ([]Receipt, error)
 }
