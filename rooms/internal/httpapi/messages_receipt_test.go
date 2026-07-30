@@ -59,6 +59,22 @@ func (e *recordingEmitter) Receipts() []receipt.Receipt {
 	return append([]receipt.Receipt(nil), e.receipts...)
 }
 
+// ListByRoom implements receipt.Emitter. None of the tests in this file
+// exercise the read side; it exists so recordingEmitter still satisfies the
+// interface.
+func (e *recordingEmitter) ListByRoom(_ context.Context, tenantID, roomID string) ([]receipt.Receipt, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	out := make([]receipt.Receipt, 0, len(e.receipts))
+	for _, r := range e.receipts {
+		if r.TenantID == tenantID && r.RoomID == roomID {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
 // waitForEmit fails the test if em does not record an Emit call within 2s —
 // generous enough to absorb scheduler noise without masking a bug that never
 // emits at all.
