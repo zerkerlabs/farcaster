@@ -43,6 +43,8 @@ type Config struct {
 	Audience string
 
 	// TenantClaim names the JWT claim that carries the tenant/client identifier.
+	// The correct name is provider-specific, so unlike UserClaim there is no
+	// default; it must be set explicitly.
 	// Environment variable: ROOMS_OIDC_TENANT_CLAIM
 	TenantClaim string
 
@@ -58,7 +60,8 @@ type Config struct {
 }
 
 // ConfigFromEnv reads OIDC configuration from environment variables.
-// IssuerURL and Audience must be non-empty for the middleware to initialise.
+// IssuerURL, Audience, and TenantClaim must be non-empty for the middleware
+// to initialise.
 func ConfigFromEnv() Config {
 	return Config{
 		IssuerURL:   os.Getenv("ROOMS_OIDC_ISSUER"),
@@ -90,14 +93,19 @@ func UserFromContext(ctx context.Context) string {
 // audience tokens return 401 with no body (AGENTS.md invariants #1 and #3).
 // Token values are never logged (invariant #4).
 //
-// IssuerURL and Audience must be non-empty; NewMiddleware returns an error if
-// either is missing (fail-closed — the server must not start without auth).
+// IssuerURL, Audience, and TenantClaim must be non-empty; NewMiddleware
+// returns an error if any is missing (fail-closed — the server must not start
+// without auth, and must not start half-configured and reject every request
+// with no indication why).
 func NewMiddleware(ctx context.Context, cfg Config, logger *slog.Logger) (func(http.Handler) http.Handler, error) {
 	if cfg.IssuerURL == "" {
 		return nil, fmt.Errorf("auth: IssuerURL is required (set ROOMS_OIDC_ISSUER)")
 	}
 	if cfg.Audience == "" {
 		return nil, fmt.Errorf("auth: Audience is required (set ROOMS_OIDC_AUDIENCE)")
+	}
+	if cfg.TenantClaim == "" {
+		return nil, fmt.Errorf("auth: TenantClaim is required (set ROOMS_OIDC_TENANT_CLAIM)")
 	}
 
 	if cfg.HTTPClient != nil {

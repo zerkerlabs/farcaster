@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | `FARCASTER_OIDC_ISSUER` | Yes | — | OIDC issuer base URL used for provider discovery. The gateway refuses to start without it — there is no unauthenticated path to bring it up. |
 | `FARCASTER_OIDC_AUDIENCE` | Yes | — | Expected value of the JWT `aud` claim. The gateway refuses to start without it. |
-| `FARCASTER_OIDC_TENANT_CLAIM` | No | `""` | JWT claim carrying the tenant/client identifier. Provider-specific; leave empty to disable tenant extraction. |
+| `FARCASTER_OIDC_TENANT_CLAIM` | Yes | — | JWT claim carrying the tenant/client identifier. Provider-specific, so there is no default — the gateway refuses to start without it. |
 | `FARCASTER_OIDC_USER_CLAIM` | No | `sub` | JWT claim carrying the acting user's subject. `sub` is the OIDC standard. |
 | `FARCASTER_OIDC_SCOPE_CLAIM` | No | `scope` | JWT claim carrying the token's OAuth scopes (a space-separated string or a JSON array). Leave empty to disable scope extraction. `scp` is common on Microsoft/Auth0. |
 

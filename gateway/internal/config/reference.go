@@ -81,12 +81,11 @@ var Reference = []Var{
 		Description: "Expected value of the JWT `aud` claim. The gateway refuses to start without it.",
 	},
 	{
-		Name:       "FARCASTER_OIDC_TENANT_CLAIM",
-		Group:      groupAuth,
-		Default:    "",
-		HasDefault: true,
-		Description: "JWT claim carrying the tenant/client identifier. Provider-specific; " +
-			"leave empty to disable tenant extraction.",
+		Name:     "FARCASTER_OIDC_TENANT_CLAIM",
+		Group:    groupAuth,
+		Required: true,
+		Description: "JWT claim carrying the tenant/client identifier. Provider-specific, " +
+			"so there is no default — the gateway refuses to start without it.",
 	},
 	{
 		Name:        "FARCASTER_OIDC_USER_CLAIM",
