@@ -15,7 +15,13 @@ serving farcastergateway.com. This project is docs only.
   at `src/content/docs/<path>` serves at `/<path>/`: "What is Farcaster" is `/`
   and Quickstart is `/quickstart/`. Some sections are still shell stubs.
 - `vercel.json` — forwards the old `/docs/...` URLs to their new root-level
-  homes, so links published before the move keep resolving.
+  homes, so links published before the move keep resolving. The redirect uses
+  `:path(.*)` and **not** `:path*`: a path-segment wildcard does not match a
+  trailing slash, and Starlight builds directory-style URLs that all end in one,
+  so `:path*` would silently 404 every real docs URL. Note that `vercel.json` is
+  strict JSON with no comment syntax — Vercel rejects unknown properties inside
+  a redirect entry and **fails the build**, leaving the previous deploy live.
+  `npm run check-vercel` guards both mistakes.
 - `src/components/Commercial.astro` — the reusable inline badge marking
   managed-tier material, used across the docs. Only usable from `.mdx` content
   files (Starlight bundles MDX support automatically).
