@@ -1,0 +1,45 @@
+---
+title: Commercial
+description: What the managed tier adds on top of the OSS gateway, and where the open-core line sits.
+---
+
+import Commercial from '../../../components/Commercial.astro';
+
+Farcaster is **open-core**. Everything needed to self-host, run, and secure the
+gateway — the catalog, routing and proxy, MCP-native transport, auth and
+per-tenant credential isolation, and the x402 payment **gate** — is OSS and
+free. The <Commercial /> managed tier picks up where the open-core line is
+drawn: at **moving money** and at **running Farcaster across many tenants from
+one place**. See [The open-core boundary](/concepts/open-core-boundary/)
+for the reasoning, and [OSS vs Commercial at a glance](/oss-vs-commercial/)
+for the capability-by-capability split.
+
+## Settlement & collection
+
+The OSS gateway **verifies** an x402 payment authorization before forwarding a
+call. Actually **collecting** that payment on-chain — settling the authorization
+and moving the funds — is the managed tier, including a **hosted facilitator**
+so you don't have to run and fund the `/settle` server yourself. (You can also
+self-host a facilitator entirely on OSS — see
+[Self-hosting vs managed](/facilitator/self-hosting/); the managed
+facilitator is the convenience, not a gate on the capability.)
+
+## Usage & revenue metering
+
+A **metering dashboard** over your gateway's invocation and payment activity —
+usage and revenue by agent, tenant, and time — with **usage-based billing** on
+top of it. This is the finance-team surface: the raw invocation and payment
+records are available to OSS via the API, but the aggregated dashboard and
+billing live in the managed tier.
+
+## Multi-tenant control plane
+
+A **centralized control plane** to manage and govern many Farcaster tenants
+from one place — the operational convenience for running Farcaster at fleet
+scale, rather than administering each instance on its own.
+
+## Pricing
+
+Pricing for the managed tier is **not yet published**. If you'd like to talk
+about it, [open an issue](https://github.com/zerkerlabs/farcaster/issues) and
+we'll follow up.

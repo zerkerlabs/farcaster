@@ -1,20 +1,21 @@
 # Farcaster website (`www/`)
 
-A single [Astro](https://astro.build) + [Starlight](https://starlight.astro.build)
-app: a marketing landing page at `/` and embedded developer docs at `/docs`, one
-project, one deploy. The repo's only Node/JS toolchain — it sits outside the Go
-workspace (`go.work`).
+The developer documentation site, [Astro](https://astro.build) +
+[Starlight](https://starlight.astro.build), deployed to
+**docs.farcastergateway.com**. The repo's only Node/JS toolchain — it sits
+outside the Go workspace (`go.work`).
+
+The product-facing marketing site is a separate repo,
+[`zerkerlabs/farcastergateway`](https://github.com/zerkerlabs/farcastergateway),
+serving farcastergateway.com. This project is docs only.
 
 ## Layout
 
-- `src/pages/index.astro` — the marketing landing page (plain Astro, not
-  Starlight): hero, one-line install (mirrors the root README's `make dev-auth`
-  quickstart), value props, and links to Docs/GitHub/SDKs/managed tier.
-- `src/content/docs/docs/` — the docs tree. The doubled `docs/docs` path is
-  intentional: Starlight's routing is folder-driven (a page at
-  `src/content/docs/<path>` serves at `/<path>/`), so nesting content one level
-  deeper under `docs/` puts every doc page at `/docs/...` instead of Starlight
-  claiming the site root. Some sections are still shell stubs.
+- `src/content/docs/` — the docs tree. Starlight owns the site root, so a page
+  at `src/content/docs/<path>` serves at `/<path>/`: "What is Farcaster" is `/`
+  and Quickstart is `/quickstart/`. Some sections are still shell stubs.
+- `vercel.json` — forwards the old `/docs/...` URLs to their new root-level
+  homes, so links published before the move keep resolving.
 - `src/components/Commercial.astro` — the reusable inline badge marking
   managed-tier material, used across the docs. Only usable from `.mdx` content
   files (Starlight bundles MDX support automatically).
