@@ -2,7 +2,7 @@
   "name": "@zerkerlabs/farcaster-www",
   "version": "0.0.0",
   "private": true,
-  "description": "Farcaster product website — marketing landing + embedded developer docs, one Astro + Starlight app.",
+  "description": "Farcaster product website \u2014 marketing landing + embedded developer docs, one Astro + Starlight app.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -13,7 +13,8 @@
     "preview": "astro preview",
     "lint": "astro check",
     "check-links": "linkinator ./dist --recurse --silent --skip \"^https?://(?!localhost)\"",
-    "check": "npm run lint && npm run build && npm run check-links"
+    "check": "npm run lint && npm run check-vercel && npm run build && npm run check-links",
+    "check-vercel": "node scripts/check-vercel-json.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.0",
