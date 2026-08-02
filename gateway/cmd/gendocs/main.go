@@ -22,7 +22,7 @@ import (
 
 // defaultOut is relative to the gateway module root, where `make -C gateway`
 // runs. The leading `_` marks it a Starlight partial (imported, not routed).
-const defaultOut = "../www/src/content/docs/docs/self-hosting/_config-reference.md"
+const defaultOut = "../www/src/content/docs/self-hosting/_config-reference.md"
 
 func main() {
 	out := flag.String("out", defaultOut, "path to write the config reference Markdown partial")

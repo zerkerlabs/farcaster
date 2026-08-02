@@ -3,5 +3,18 @@
   "framework": "astro",
   "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "comment": "Docs used to serve under /docs/. They now serve from the root of docs.farcastergateway.com, so every old URL is forwarded. :path(.*) rather than :path* — the latter does not match a trailing slash, and Starlight builds directory-style URLs that all end in one.",
+      "source": "/docs/:path(.*)",
+      "destination": "/:path",
+      "permanent": true
+    },
+    {
+      "source": "/docs",
+      "destination": "/",
+      "permanent": true
+    }
+  ]
 }

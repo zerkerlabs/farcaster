@@ -1,0 +1,43 @@
+---
+title: The open-core boundary
+description: Where Farcaster draws the line between the free, self-hostable product and the managed tier — and why.
+---
+
+import Commercial from '../../../components/Commercial.astro';
+
+Farcaster is **open-core**. The one-line rule: **OSS verifies and captures;
+<Commercial /> collects, bills, and governs.**
+
+## Why the line sits here
+
+The gateway itself — catalog, routing, proxy, MCP-native transport, auth,
+SSRF guarding, per-tenant credential isolation — has to be free and
+self-hostable, or the sovereign/self-host pitch is hollow. The x402 payment
+**gate** (verifying a signed payment authorization before forwarding a call)
+is deliberately OSS too: it's the primitive that makes "self-host *and*
+monetize" a credible claim, and giving it away seeds adoption. Raw invocation
+and payment data — what happened, when, for how much — is OSS as well; you
+own your own data, full stop.
+
+What moves to <Commercial /> is everything downstream of *verification*:
+
+- **Settlement / collection** — actually submitting the verified payment
+  on-chain, fee modes (passthrough, markup, absorb), and using Zerker's
+  managed facilitator instead of self-hosting one.
+- **The usage & revenue metering dashboard**, and usage-based billing
+  (quotas, invoicing, spend limits).
+- **The multi-tenant control plane** — centralized management and governance
+  across a fleet of tenants from one place.
+
+This mirrors the clearest precedent in the space (Lunar's MCPX, which gates
+even its usage-visibility dashboard behind its Enterprise tier): the free tier
+does real, load-bearing work — it isn't a crippled trial — but the moment
+money actually moves, or you want centralized governance across many tenants,
+that's the paid product.
+
+## Where you'll see it marked
+
+Any page describing a managed-only capability carries the same badge used
+above: <Commercial />. It shows up on facilitator collection, the metering
+dashboard, and the control plane — nowhere else. See
+[OSS vs Commercial at a glance](/oss-vs-commercial/) for the full table.

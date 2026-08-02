@@ -2,15 +2,15 @@ import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 
-// Landing page ("/") is a plain Astro page in src/pages/. Docs live under
-// src/content/docs/docs/ (note the doubled "docs" segment) so Starlight's
-// folder-driven routing places every doc under /docs/ instead of claiming the
-// site root — the "one app, embedded /docs" shape.
+// Starlight owns the whole site: docs live at src/content/docs/ and serve from
+// the root, so "What is Farcaster" is / and Quickstart is /quickstart/. The
+// marketing landing page moved to its own repo (zerkerlabs/farcastergateway),
+// which is why there is no src/pages/index.astro competing for "/".
 export default defineConfig({
   // Production URL — enables the sitemap (Starlight bundles @astrojs/sitemap,
   // which no-ops without `site`) and makes canonical/og/sitemap links absolute.
   // Update this if the site moves to a custom domain.
-  site: 'https://farcaster-jade.vercel.app',
+  site: 'https://docs.farcastergateway.com',
   integrations: [
     starlight({
       title: 'Farcaster',
@@ -39,12 +39,12 @@ export default defineConfig({
       plugins: [
         starlightOpenAPI([
           {
-            base: 'docs/api-reference/x402',
+            base: 'api-reference/x402',
             label: 'x402 wire contract',
             schema: 'src/openapi/x402-reference.yaml',
           },
           {
-            base: 'docs/api-reference/gateway',
+            base: 'api-reference/gateway',
             label: 'Gateway REST API',
             schema: '../gateway/openapi.yaml',
           },
@@ -57,57 +57,57 @@ export default defineConfig({
         {
           label: 'Start here',
           items: [
-            { label: 'What is Farcaster', slug: 'docs' },
-            { label: 'Install', slug: 'docs/install' },
-            { label: 'Quickstart', slug: 'docs/quickstart' },
-            { label: 'OSS vs Commercial at a glance', slug: 'docs/oss-vs-commercial' },
+            { label: 'What is Farcaster', link: '/' },
+            { label: 'Install', slug: 'install' },
+            { label: 'Quickstart', slug: 'quickstart' },
+            { label: 'OSS vs Commercial at a glance', slug: 'oss-vs-commercial' },
           ],
         },
         {
           label: 'Concepts',
           items: [
-            { label: 'Architecture', slug: 'docs/concepts/architecture' },
-            { label: 'Sovereignty & no-custody', slug: 'docs/concepts/sovereignty' },
-            { label: 'Auth & multi-tenancy', slug: 'docs/concepts/auth-and-multi-tenancy' },
-            { label: 'The open-core boundary', slug: 'docs/concepts/open-core-boundary' },
+            { label: 'Architecture', slug: 'concepts/architecture' },
+            { label: 'Sovereignty & no-custody', slug: 'concepts/sovereignty' },
+            { label: 'Auth & multi-tenancy', slug: 'concepts/auth-and-multi-tenancy' },
+            { label: 'The open-core boundary', slug: 'concepts/open-core-boundary' },
           ],
         },
         {
           label: 'Gateway',
           items: [
-            { label: 'Overview', slug: 'docs/gateway' },
-            { label: 'Agent Catalog', slug: 'docs/gateway/catalog' },
-            { label: 'Routing & proxy', slug: 'docs/gateway/proxy' },
-            { label: 'MCP-native transport', slug: 'docs/gateway/mcp' },
-            { label: 'Observability & analytics', slug: 'docs/gateway/observability' },
+            { label: 'Overview', slug: 'gateway' },
+            { label: 'Agent Catalog', slug: 'gateway/catalog' },
+            { label: 'Routing & proxy', slug: 'gateway/proxy' },
+            { label: 'MCP-native transport', slug: 'gateway/mcp' },
+            { label: 'Observability & analytics', slug: 'gateway/observability' },
           ],
         },
         {
           label: 'Payments (x402)',
           items: [
-            { label: 'Overview', slug: 'docs/payments' },
-            { label: 'The wire contract', slug: 'docs/payments/wire-contract' },
-            { label: 'Gate vs settle', slug: 'docs/payments/gate-vs-settle' },
+            { label: 'Overview', slug: 'payments' },
+            { label: 'The wire contract', slug: 'payments/wire-contract' },
+            { label: 'Gate vs settle', slug: 'payments/gate-vs-settle' },
           ],
         },
         {
           label: 'Facilitator',
           items: [
-            { label: 'Overview', slug: 'docs/facilitator' },
-            { label: 'Custody posture', slug: 'docs/facilitator/custody' },
-            { label: 'Self-hosting vs managed', slug: 'docs/facilitator/self-hosting' },
-            { label: 'Endpoints', slug: 'docs/facilitator/endpoints' },
-            { label: 'Signer backends', slug: 'docs/facilitator/signers' },
+            { label: 'Overview', slug: 'facilitator' },
+            { label: 'Custody posture', slug: 'facilitator/custody' },
+            { label: 'Self-hosting vs managed', slug: 'facilitator/self-hosting' },
+            { label: 'Endpoints', slug: 'facilitator/endpoints' },
+            { label: 'Signer backends', slug: 'facilitator/signers' },
           ],
         },
         {
           label: 'SDKs',
-          items: [{ label: 'Overview', slug: 'docs/sdks' }],
+          items: [{ label: 'Overview', slug: 'sdks' }],
         },
         {
           label: 'API reference',
           items: [
-            { label: 'Overview', slug: 'docs/api-reference' },
+            { label: 'Overview', slug: 'api-reference' },
             // Generated by starlight-openapi from x402types/openapi.yaml.
             ...openAPISidebarGroups,
           ],
@@ -115,17 +115,17 @@ export default defineConfig({
         {
           label: 'Self-hosting & operations',
           items: [
-            { label: 'Overview', slug: 'docs/self-hosting' },
-            { label: 'Deployment', slug: 'docs/self-hosting/deployment' },
-            { label: 'Configuration reference', slug: 'docs/self-hosting/configuration' },
-            { label: 'Postgres', slug: 'docs/self-hosting/postgres' },
-            { label: 'KMS & secrets', slug: 'docs/self-hosting/kms-and-secrets' },
-            { label: 'Upgrades', slug: 'docs/self-hosting/upgrades' },
+            { label: 'Overview', slug: 'self-hosting' },
+            { label: 'Deployment', slug: 'self-hosting/deployment' },
+            { label: 'Configuration reference', slug: 'self-hosting/configuration' },
+            { label: 'Postgres', slug: 'self-hosting/postgres' },
+            { label: 'KMS & secrets', slug: 'self-hosting/kms-and-secrets' },
+            { label: 'Upgrades', slug: 'self-hosting/upgrades' },
           ],
         },
         {
           label: 'Commercial',
-          items: [{ label: 'Overview', slug: 'docs/commercial' }],
+          items: [{ label: 'Overview', slug: 'commercial' }],
         },
       ],
     }),

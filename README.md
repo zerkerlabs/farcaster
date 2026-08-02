@@ -10,9 +10,10 @@ It composes with the rest of the Zerker stack:
 [Treeship](https://github.com/zerkerlabs/treeship) (portable trust receipts) and
 [Zmem](https://github.com/zerkerlabs/zmem) (verifiable agent memory).
 
-**Documentation:** <https://farcaster-jade.vercel.app> — guides, concepts, and the
-generated API reference. The site is built from [`www/`](www/) in this repo, so
-docs ship with the code they describe.
+**Documentation:** <https://docs.farcastergateway.com> — guides, concepts, and
+the generated API reference. The site is built from [`www/`](www/) in this repo,
+so docs ship with the code they describe. The product site lives separately at
+<https://farcastergateway.com>.
 
 ## What's here
 
