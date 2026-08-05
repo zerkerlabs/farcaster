@@ -78,7 +78,7 @@ const (
 	ErrorClassInternal        ErrorClass = "internal"
 )
 
-// Invocation is the durable record for one proxied call through Farcaster.
+// Invocation is the durable record for one proxied call through Zerker.
 //
 // Body fields (RequestBody, ResponseBody) are nil when the per-agent
 // body-capture toggle is off (the default — spec 0002 Q10). They are only
@@ -100,7 +100,7 @@ type Invocation struct {
 	ResponseBody   []byte      // nil when body capture is off
 	TTFTMS         *int64      // time-to-first-byte in ms; nil for transactional or when no bytes streamed
 	ErrorClass     *ErrorClass // coarse error taxonomy; nil on success
-	Model          *string     // caller-supplied model name (X-Farcaster-Model header); nil if absent
+	Model          *string     // caller-supplied model name (X-Zerker-Model header); nil if absent
 	MCPMethod      *string     // parsed MCP JSON-RPC method (e.g. "tools/call"); nil for non-MCP agents (spec 0004)
 	MCPTool        *string     // for mcp_method="tools/call", the parsed params.name; nil otherwise (spec 0004)
 	PaymentNetwork *string     // x402 payment network (e.g. "base"); nil for unpriced routes (spec 0005)

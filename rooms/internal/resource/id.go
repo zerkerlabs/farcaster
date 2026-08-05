@@ -1,6 +1,6 @@
 // Package resource provides shared utilities for Rooms resource identifiers.
 //
-// Every resource type in Farcaster is identified by a prefixed opaque string of
+// Every resource type in Zerker is identified by a prefixed opaque string of
 // the form "<prefix>_<uuidv7>". This mirrors the convention the gateway module
 // owns in gateway/internal/resource. Rooms does not import that package —
 // modules do not share internal packages — so it keeps its own copy of the same

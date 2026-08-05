@@ -50,9 +50,9 @@ worth knowing about:
 - **`error_class`** — a coarse failure taxonomy set by the proxy on failure:
   `timeout`, `upstream_5xx`, `upstream_4xx`, `ssrf_blocked`,
   `credential_error`, `cancelled`, `internal`. `null` on success.
-- **`model`** — caller-supplied only, via the `X-Farcaster-Model` request
+- **`model`** — caller-supplied only, via the `X-Zerker-Model` request
   header (see [Routing & proxy](/gateway/proxy/#body-verbatim-metadata-in-headers)).
-  Farcaster proxies arbitrary upstream agents, not a known LLM wire format, so
+  Zerker proxies arbitrary upstream agents, not a known LLM wire format, so
   it does not parse bodies to infer a model. MCP is the one exception — see
   [MCP-native transport](/gateway/mcp/).
 

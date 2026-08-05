@@ -8,7 +8,7 @@ import (
 )
 
 // blockedHeaders is the set of caller headers that must never be forwarded to
-// the upstream. The Authorization header is blocked because Farcaster replaces
+// the upstream. The Authorization header is blocked because Zerker replaces
 // it with the configured upstream credential (invariant #4, AGENTS.md; spec
 // 0002 §Q5). The remaining entries are standard hop-by-hop headers that have
 // no meaning beyond a single HTTP hop (RFC 7230 §6.1).
@@ -29,7 +29,7 @@ var blockedHeaders = map[string]struct{}{
 }
 
 // copyHeaders copies headers from src to dst, skipping any that appear in
-// blockedHeaders and any X-Farcaster-* headers (to prevent callers from
+// blockedHeaders and any X-Zerker-* headers (to prevent callers from
 // spoofing gateway metadata).
 func copyHeaders(src, dst http.Header) {
 	for k, vs := range src {
@@ -37,7 +37,7 @@ func copyHeaders(src, dst http.Header) {
 		if _, blocked := blockedHeaders[canon]; blocked {
 			continue
 		}
-		if strings.HasPrefix(canon, "X-Farcaster-") {
+		if strings.HasPrefix(canon, "X-Zerker-") {
 			continue
 		}
 		for _, v := range vs {

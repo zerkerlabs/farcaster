@@ -18,7 +18,7 @@ import (
 )
 
 // GatewayCaller is the subset of *gateway.Client the message handlers need:
-// delivering one proxied call to a member's agent through the Farcaster
+// delivering one proxied call to a member's agent through the Zerker
 // gateway and confirming it actually completed. *gateway.Client satisfies this
 // interface.
 //

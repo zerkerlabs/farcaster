@@ -7,17 +7,17 @@
 # is written to $TOKEN_FILE so you can call the API:
 #
 #   ./scripts/dev-auth.sh                 # in one terminal
-#   curl -H "Authorization: Bearer $(cat /tmp/farcaster-dev-token)" \
+#   curl -H "Authorization: Bearer $(cat /tmp/zerker-dev-token)" \
 #        localhost:8080/v1/agents          # in another
 #
-# Set FARCASTER_DATABASE_URL before running to back it with Postgres instead of
+# Set ZERKER_DATABASE_URL before running to back it with Postgres instead of
 # the in-memory store.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ISSUER="${ISSUER:-http://127.0.0.1:9099}"
-AUDIENCE="${AUDIENCE:-farcaster}"
-TOKEN_FILE="${TOKEN_FILE:-/tmp/farcaster-dev-token}"
+AUDIENCE="${AUDIENCE:-zerker-gateway}"
+TOKEN_FILE="${TOKEN_FILE:-/tmp/zerker-dev-token}"
 
 cleanup() { [ -n "${MOCK_PID:-}" ] && kill "$MOCK_PID" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
@@ -40,8 +40,8 @@ echo "dev-auth: call the API with:  curl -H \"Authorization: Bearer \$(cat $TOKE
 echo "dev-auth: starting gateway on :8080 (Ctrl-C to stop both)"
 
 cd "$ROOT"
-FARCASTER_OIDC_ISSUER="$ISSUER" \
-FARCASTER_OIDC_AUDIENCE="$AUDIENCE" \
-FARCASTER_OIDC_TENANT_CLAIM="${FARCASTER_OIDC_TENANT_CLAIM:-tenant}" \
-FARCASTER_OIDC_USER_CLAIM="${FARCASTER_OIDC_USER_CLAIM:-sub}" \
-  exec go run ./cmd/farcaster
+ZERKER_OIDC_ISSUER="$ISSUER" \
+ZERKER_OIDC_AUDIENCE="$AUDIENCE" \
+ZERKER_OIDC_TENANT_CLAIM="${ZERKER_OIDC_TENANT_CLAIM:-tenant}" \
+ZERKER_OIDC_USER_CLAIM="${ZERKER_OIDC_USER_CLAIM:-sub}" \
+  exec go run ./cmd/zerker-gateway

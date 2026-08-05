@@ -130,10 +130,10 @@ func TestHandleTransact_PolicyNoDocumentNoChange(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got != "" {
-		t.Errorf("X-Farcaster-Policy-Warning = %q, want empty (no policy configured)", got)
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got != "" {
+		t.Errorf("X-Zerker-Policy-Warning = %q, want empty (no policy configured)", got)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 }
 
@@ -159,8 +159,8 @@ func TestHandleTransact_PolicyDeny(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got != "" {
-		t.Errorf("X-Farcaster-Invocation-ID = %q, want empty (denied before invocation creation)", got)
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got != "" {
+		t.Errorf("X-Zerker-Invocation-ID = %q, want empty (denied before invocation creation)", got)
 	}
 	got := decodeErrorBody(t, rec.Body.Bytes())
 	if got["error"] != "denied by policy" {
@@ -196,10 +196,10 @@ func TestHandleTransact_PolicyWarnForwards(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got == "" {
-		t.Error("X-Farcaster-Policy-Warning header missing, want a warning on a matched warn rule")
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got == "" {
+		t.Error("X-Zerker-Policy-Warning header missing, want a warning on a matched warn rule")
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 	// The transactional path runs Do in a background goroutine (issue #53);
 	// waiting for the invocation to reach a terminal state guarantees Do has
@@ -285,7 +285,7 @@ func TestHandleTransact_PolicyEngineErrorAppliesOnError(t *testing.T) {
 			// terminal state before checking wasCalled so the check cannot
 			// race the goroutine.
 			if tt.wantFwd {
-				invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+				invID := rec.Header().Get("X-Zerker-Invocation-ID")
 				waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 			}
 			if got := fwd.wasCalled(); got != tt.wantFwd {
@@ -310,8 +310,8 @@ func TestHandleStream_PolicyNoDocumentNoChange(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got != "" {
-		t.Errorf("X-Farcaster-Policy-Warning = %q, want empty (no policy configured)", got)
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got != "" {
+		t.Errorf("X-Zerker-Policy-Warning = %q, want empty (no policy configured)", got)
 	}
 }
 
@@ -337,8 +337,8 @@ func TestHandleStream_PolicyDeny(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got != "" {
-		t.Errorf("X-Farcaster-Invocation-ID = %q, want empty (denied before invocation creation)", got)
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got != "" {
+		t.Errorf("X-Zerker-Invocation-ID = %q, want empty (denied before invocation creation)", got)
 	}
 	got := decodeErrorBody(t, rec.Body.Bytes())
 	if got["error"] != "denied by policy" {
@@ -371,8 +371,8 @@ func TestHandleStream_PolicyWarnForwards(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got == "" {
-		t.Error("X-Farcaster-Policy-Warning header missing, want a warning on a matched warn rule")
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got == "" {
+		t.Error("X-Zerker-Policy-Warning header missing, want a warning on a matched warn rule")
 	}
 	if !fwd.wasCalled() {
 		t.Error("forwarder was not called; a warn decision must forward like allow")
@@ -490,7 +490,7 @@ func TestHandleTransact_PolicyRateRuleFiresOnLiveTraffic(t *testing.T) {
 	if rec1.Code != http.StatusAccepted {
 		t.Fatalf("1st call status = %d, want 202; body = %s", rec1.Code, rec1.Body.String())
 	}
-	invID1 := rec1.Header().Get("X-Farcaster-Invocation-ID")
+	invID1 := rec1.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID1, invocation.StatusSucceeded)
 	if got := fwd.callCount(); got != 1 {
 		t.Fatalf("forwarder called %d times after 1st call, want 1", got)
@@ -504,8 +504,8 @@ func TestHandleTransact_PolicyRateRuleFiresOnLiveTraffic(t *testing.T) {
 	if rec2.Code != http.StatusForbidden {
 		t.Fatalf("2nd call status = %d, want 403 (rate_per_min rule must fire on live traffic); body = %s", rec2.Code, rec2.Body.String())
 	}
-	if got := rec2.Header().Get("X-Farcaster-Invocation-ID"); got != "" {
-		t.Errorf("X-Farcaster-Invocation-ID = %q, want empty (denied before invocation creation)", got)
+	if got := rec2.Header().Get("X-Zerker-Invocation-ID"); got != "" {
+		t.Errorf("X-Zerker-Invocation-ID = %q, want empty (denied before invocation creation)", got)
 	}
 	if got := fwd.callCount(); got != 1 {
 		t.Errorf("forwarder called %d times after 2nd call, want 1 (denied call must never be forwarded)", got)
@@ -636,10 +636,10 @@ func TestHandleTransact_PolicyClassifierAllow(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got != "" {
-		t.Errorf("X-Farcaster-Policy-Warning = %q, want empty (classifier verdict was allow)", got)
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got != "" {
+		t.Errorf("X-Zerker-Policy-Warning = %q, want empty (classifier verdict was allow)", got)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 	if !fwd.wasCalled() {
 		t.Error("forwarder was not called; a classifier allow verdict must forward like allow")
@@ -665,10 +665,10 @@ func TestHandleTransact_PolicyClassifierWarn(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Policy-Warning"); got == "" {
-		t.Error("X-Farcaster-Policy-Warning header missing, want a warning from the classifier verdict")
+	if got := rec.Header().Get("X-Zerker-Policy-Warning"); got == "" {
+		t.Error("X-Zerker-Policy-Warning header missing, want a warning from the classifier verdict")
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 	if !fwd.wasCalled() {
 		t.Error("forwarder was not called; a classifier warn verdict must forward like allow")
@@ -775,7 +775,7 @@ func TestHandleTransact_PolicyClassifierTimeoutAppliesOnError(t *testing.T) {
 				t.Fatalf("status = %d, want %d; body = %s", rec.Code, tt.wantCode, rec.Body.String())
 			}
 			if tt.wantFwd {
-				invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+				invID := rec.Header().Get("X-Zerker-Invocation-ID")
 				waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 			}
 			if got := fwd.wasCalled(); got != tt.wantFwd {
@@ -812,6 +812,6 @@ func TestHandleTransact_PolicyNoClassifierRuleMakesZeroExternalCalls(t *testing.
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 }

@@ -5,16 +5,16 @@ description: The x402 payment gate — verifying a stablecoin payment authorizat
 
 import Commercial from '../../../components/Commercial.astro';
 
-Farcaster prices routes and MCP tools and gates them behind
+Zerker prices routes and MCP tools and gates them behind
 [x402](https://x402.gitbook.io/x402) — a challenge/response protocol,
 now stewarded by the Linux Foundation's x402 Foundation, for stablecoin
 payment authorizations (EIP-3009 / EIP-712 `exact` scheme, USDC on Base).
 
-Two capabilities sit on top of the same protocol, and Farcaster draws its
+Two capabilities sit on top of the same protocol, and Zerker draws its
 open-core line exactly between them:
 
 - **The gate** — verifying that a caller's signed payment authorization is
-  valid, sufficient, and unexpired before Farcaster forwards the call. This
+  valid, sufficient, and unexpired before Zerker forwards the call. This
   runs **in the gateway**, self-hosted, with no server-held key. It is OSS.
 - **Settlement** — actually *collecting* the verified payment on-chain, so the
   operator's balance changes. This requires a **facilitator**: self-hostable

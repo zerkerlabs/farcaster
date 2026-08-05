@@ -1,4 +1,4 @@
-// Package httpapi implements the Farcaster HTTP API surface (spec 0001 and
+// Package httpapi implements the Zerker HTTP API surface (spec 0001 and
 // beyond). Each endpoint lives in its own file; RegisterRoutes is the single
 // place to add new route registrations so future handlers can be added with
 // minimal merge conflict.
@@ -47,7 +47,7 @@ type CallerRateLimiter interface {
 	Allow(key string) time.Duration
 }
 
-// Handler holds the shared dependencies for all Farcaster HTTP handlers.
+// Handler holds the shared dependencies for all Zerker HTTP handlers.
 type Handler struct {
 	store           agent.AgentStore
 	credSvc         CredentialService

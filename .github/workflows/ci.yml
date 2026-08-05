@@ -1,4 +1,4 @@
-# CI — the merge gate for the public Farcaster repo.
+# CI — the merge gate for the public Zerker repo.
 #
 # Runs each Go module's own `make check` (tidy-check, fmt-check, vet, lint,
 # race-tested tests) as an independent job. This mirrors exactly what
@@ -98,9 +98,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: farcaster
-          POSTGRES_PASSWORD: farcaster
-          POSTGRES_DB: farcaster_test
+          POSTGRES_USER: zerker
+          POSTGRES_PASSWORD: zerker
+          POSTGRES_DB: zerker_test
         ports:
           - 5432:5432
         options: >-
@@ -119,7 +119,7 @@ jobs:
 
       - name: Integration tests (race)
         env:
-          TEST_DATABASE_URL: postgres://farcaster:farcaster@localhost:5432/farcaster_test
+          TEST_DATABASE_URL: postgres://zerker:zerker@localhost:5432/zerker_test
         # -p 1 runs one package at a time. The integration suites (agent,
         # invocation, credential, policy, settlement) all TRUNCATE shared tables
         # in per-test setup against the ONE TEST_DATABASE_URL, so concurrent

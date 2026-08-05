@@ -1,8 +1,8 @@
-// Package farcaster is the Go SDK for the Farcaster gateway and x402
+// Package zerker is the Go SDK for the Zerker gateway and x402
 // facilitator. Skeleton (ADR-0010): it re-exports the x402 wire types from the
 // generated x402types contract so SDK users depend on one package; typed client
 // methods land alongside the surfaces they call.
-package farcaster
+package zerker
 
 import "github.com/zerkerlabs/farcaster/x402types"
 

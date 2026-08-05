@@ -2,7 +2,7 @@
   "name": "@zerkerlabs/farcaster-www",
   "version": "0.0.0",
   "private": true,
-  "description": "Farcaster product website \u2014 marketing landing + embedded developer docs, one Astro + Starlight app.",
+  "description": "Zerker product website \u2014 marketing landing + embedded developer docs, one Astro + Starlight app.",
   "type": "module",
   "engines": {
     "node": ">=22"

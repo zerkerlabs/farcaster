@@ -142,8 +142,8 @@ func TestHandleStream_X402_FailsClosedOnUnverifiableSignature(t *testing.T) {
 		t.Fatalf("status = %d, want 402 (fail-closed: unverifiable signature); body = %s", rec.Code, rec.Body.String())
 	}
 	// The gate fires before the invocation is created, so no invocation-ID header.
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got != "" {
-		t.Errorf("X-Farcaster-Invocation-ID = %q, want empty — gate rejects before invocation", got)
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got != "" {
+		t.Errorf("X-Zerker-Invocation-ID = %q, want empty — gate rejects before invocation", got)
 	}
 }
 
@@ -304,7 +304,7 @@ func TestHandleStream_X402Challenge_NoPayment(t *testing.T) {
 	if entry["resource"] != "/v1/proxy/"+agentID+"/stream" {
 		t.Errorf("resource = %v, want %q", entry["resource"], "/v1/proxy/"+agentID+"/stream")
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got != "" {
-		t.Errorf("X-Farcaster-Invocation-ID = %q, want empty — no invocation for a 402 challenge", got)
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got != "" {
+		t.Errorf("X-Zerker-Invocation-ID = %q, want empty — no invocation for a 402 challenge", got)
 	}
 }

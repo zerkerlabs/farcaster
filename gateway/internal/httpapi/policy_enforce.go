@@ -19,7 +19,7 @@ const maxClassifierReasonLen = 200
 
 // policyWarningHeader carries a coarse description of a warn decision on the
 // call's transactional response (spec 0009 §Behavior, §Surface example).
-const policyWarningHeader = "X-Farcaster-Policy-Warning"
+const policyWarningHeader = "X-Zerker-Policy-Warning"
 
 // enforcePolicy is the policy enforcement point (PEP, spec 0009 ticket T4):
 // wired inline into handleTransact/handleStream after parseMCPRequest and

@@ -67,7 +67,7 @@ func TestHandleStream_SettleThenForward_Success(t *testing.T) {
 		t.Errorf("X-PAYMENT-RESPONSE = %+v, want success tx=0xstreamed network=base", got)
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusSucceeded {
 		t.Fatalf("Status = %q, want succeeded", inv.Status)
@@ -119,9 +119,9 @@ func TestHandleStream_SettleFailure_NoStream(t *testing.T) {
 		t.Errorf("X-PAYMENT-RESPONSE = %q, want empty on settle failure", hdr)
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	if invID == "" {
-		t.Fatal("X-Farcaster-Invocation-ID missing even on settle failure")
+		t.Fatal("X-Zerker-Invocation-ID missing even on settle failure")
 	}
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusFailed {

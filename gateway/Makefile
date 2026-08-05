@@ -1,12 +1,12 @@
-# Farcaster gateway — build & quality harness.
+# Zerker gateway — build & quality harness.
 #
 # `make check` is THE contract for this module. It is what every agent runs
 # before opening a PR and what CI runs as the merge gate (context check-gateway).
 # Keep this target and the CI workflow in lockstep.
 
 GO         ?= go
-BINARY     ?= farcaster
-CMD        ?= ./cmd/farcaster
+BINARY     ?= zerker-gateway
+CMD        ?= ./cmd/zerker-gateway
 VERSION    ?= dev
 COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS    := -X github.com/zerkerlabs/farcaster/gateway/internal/version.Version=$(VERSION) \

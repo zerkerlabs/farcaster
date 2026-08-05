@@ -1,5 +1,5 @@
 // Package ratelimit provides per-caller HTTP rate-limiting middleware for
-// the Farcaster gateway (security invariant #8, AGENTS.md §3).
+// the Zerker gateway (security invariant #8, AGENTS.md §3).
 package ratelimit
 
 import (

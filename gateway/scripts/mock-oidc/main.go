@@ -1,4 +1,4 @@
-// Command mock-oidc is a dev-only OpenID Connect issuer for running Farcaster
+// Command mock-oidc is a dev-only OpenID Connect issuer for running Zerker
 // locally with auth enforced. It is NOT for production: it mints a token for a
 // fixed identity and serves discovery + JWKS over plain HTTP.
 //
@@ -28,8 +28,8 @@ import (
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:9099", "listen address")
-	issuer := flag.String("issuer", "http://127.0.0.1:9099", "issuer URL (must match FARCASTER_OIDC_ISSUER)")
-	audience := flag.String("audience", "farcaster", "aud claim (must match FARCASTER_OIDC_AUDIENCE)")
+	issuer := flag.String("issuer", "http://127.0.0.1:9099", "issuer URL (must match ZERKER_OIDC_ISSUER)")
+	audience := flag.String("audience", "zerker-gateway", "aud claim (must match ZERKER_OIDC_AUDIENCE)")
 	tenant := flag.String("tenant", "acme", "tenant claim value")
 	subject := flag.String("subject", "user-alice", "sub claim value")
 	tokenFile := flag.String("token-file", "", "if set, write the minted token to this path")

@@ -5,7 +5,7 @@ description: The X-PAYMENT header, the 402 challenge, and the EIP-3009 authoriza
 
 x402 layers three shapes onto ordinary HTTP: a `402` challenge, a signed
 payment payload the caller replies with, and (once settlement is enabled) a
-settlement receipt. Farcaster's gateway, the facilitator, and both SDKs all
+settlement receipt. Zerker's gateway, the facilitator, and both SDKs all
 generate their types from the same
 [`x402types/openapi.yaml`](https://github.com/zerkerlabs/farcaster/blob/main/x402types/openapi.yaml)
 schema — see [Architecture](/concepts/architecture/) — so this page
@@ -112,7 +112,7 @@ single coarse reason, never internal detail. See
 [Endpoints](/facilitator/endpoints/) for how `/settle` uses it.
 `facilitatorFee` is an optional extension: a fee-recovering facilitator may
 report one, but the self-hosted default (and Zerker's managed facilitator in
-v1) always returns `"0"` — Farcaster's facilitator takes no cut of the
+v1) always returns `"0"` — Zerker's facilitator takes no cut of the
 transfer itself; see [Custody posture](/facilitator/custody/).
 
 ## Full reference

@@ -199,8 +199,8 @@ func TestHandleTransact(t *testing.T) {
 			},
 			checkHeader: func(t *testing.T, h http.Header) {
 				t.Helper()
-				if got := h.Get("X-Farcaster-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
-					t.Errorf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", got)
+				if got := h.Get("X-Zerker-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
+					t.Errorf("X-Zerker-Invocation-ID = %q, want inv_ prefix", got)
 				}
 			},
 		},
@@ -339,10 +339,10 @@ func TestHandleTransactLifecycle(t *testing.T) {
 		t.Fatalf("POST status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
 
-	// X-Farcaster-Invocation-ID header must be present.
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	// X-Zerker-Invocation-ID header must be present.
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	if !strings.HasPrefix(invID, "inv_") {
-		t.Fatalf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", invID)
+		t.Fatalf("X-Zerker-Invocation-ID = %q, want inv_ prefix", invID)
 	}
 
 	// Response body must contain the same invocation_id.
@@ -393,7 +393,7 @@ func TestHandleTransactUpstreamError(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	waitForStatus(t, invStore, invID, invocation.StatusFailed)
 }
@@ -426,7 +426,7 @@ func TestHandleTransactCapturesBodyAsBase64(t *testing.T) {
 	if postRec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", postRec.Code)
 	}
-	invID := postRec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := postRec.Header().Get("X-Zerker-Invocation-ID")
 
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
@@ -659,8 +659,8 @@ func TestHandleStream(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkHeader: func(t *testing.T, h http.Header) {
 				t.Helper()
-				if got := h.Get("X-Farcaster-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
-					t.Errorf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", got)
+				if got := h.Get("X-Zerker-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
+					t.Errorf("X-Zerker-Invocation-ID = %q, want inv_ prefix", got)
 				}
 				if got := h.Get("X-Accel-Buffering"); got != "no" {
 					t.Errorf("X-Accel-Buffering = %q, want no", got)
@@ -742,8 +742,8 @@ func TestHandleStream(t *testing.T) {
 			wantStatus: http.StatusBadGateway,
 			checkHeader: func(t *testing.T, h http.Header) {
 				t.Helper()
-				if got := h.Get("X-Farcaster-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
-					t.Errorf("X-Farcaster-Invocation-ID = %q, want inv_ prefix even on error", got)
+				if got := h.Get("X-Zerker-Invocation-ID"); !strings.HasPrefix(got, "inv_") {
+					t.Errorf("X-Zerker-Invocation-ID = %q, want inv_ prefix even on error", got)
 				}
 			},
 		},
@@ -826,9 +826,9 @@ func TestHandleStreamInvocationLifecycle(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	if !strings.HasPrefix(invID, "inv_") {
-		t.Fatalf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", invID)
+		t.Fatalf("X-Zerker-Invocation-ID = %q, want inv_ prefix", invID)
 	}
 
 	// The handler is synchronous: by the time ServeHTTP returns the invocation
@@ -881,9 +881,9 @@ func TestHandleStreamUpstreamError(t *testing.T) {
 		t.Fatalf("status = %d, want 502", rec.Code)
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	if !strings.HasPrefix(invID, "inv_") {
-		t.Fatalf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", invID)
+		t.Fatalf("X-Zerker-Invocation-ID = %q, want inv_ prefix", invID)
 	}
 
 	inv, err := invStore.Get(context.Background(), testTenant, invID)
@@ -952,7 +952,7 @@ func TestReceiptEmittedWhenEnabled(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	select {
@@ -989,7 +989,7 @@ func TestReceiptNotEmittedWhenDisabled(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, authedPostRequest(t, "/v1/proxy/"+agentID, []byte(`{}`), testTenant, testUser))
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	if n := em.count(); n != 0 {
@@ -1009,7 +1009,7 @@ func TestReceiptEmitterFailureIsFailOpen(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	// The invocation must still succeed even though receipt emission errors.
 	inv := waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
@@ -1039,7 +1039,7 @@ func TestReceiptEmittedOnStream(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stream status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	select {
@@ -1487,7 +1487,7 @@ func TestHandleTransact_ErrorClass(t *testing.T) {
 				t.Fatalf("POST status = %d, want 202", rec.Code)
 			}
 
-			invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+			invID := rec.Header().Get("X-Zerker-Invocation-ID")
 			inv := waitForStatus(t, invStore, invID, invocation.StatusFailed)
 
 			if inv.ErrorClass == nil {
@@ -1519,7 +1519,7 @@ func TestHandleTransact_SuccessLeaveErrorClassNull(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv := waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	if inv.ErrorClass != nil {
@@ -1617,11 +1617,11 @@ func TestHandleStream_ErrorClass(t *testing.T) {
 			mux.ServeHTTP(rec, req)
 
 			// The streaming handler is synchronous; invocation is updated by the
-			// time ServeHTTP returns. X-Farcaster-Invocation-ID is always set
+			// time ServeHTTP returns. X-Zerker-Invocation-ID is always set
 			// even when no HTTP response body is written (spec 0002 addressability).
-			invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+			invID := rec.Header().Get("X-Zerker-Invocation-ID")
 			if !strings.HasPrefix(invID, "inv_") {
-				t.Fatalf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", invID)
+				t.Fatalf("X-Zerker-Invocation-ID = %q, want inv_ prefix", invID)
 			}
 
 			inv, err := invStore.Get(context.Background(), testTenant, invID)
@@ -1664,7 +1664,7 @@ func TestHandleStream_TTFT(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body = %s", rec.Code, rec.Body.String())
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv, err := invStore.Get(context.Background(), testTenant, invID)
 	if err != nil {
 		t.Fatalf("get invocation: %v", err)
@@ -1680,7 +1680,7 @@ func TestHandleStream_TTFT(t *testing.T) {
 	}
 }
 
-// TestHandleModelHeader verifies that X-Farcaster-Model is persisted to the
+// TestHandleModelHeader verifies that X-Zerker-Model is persisted to the
 // invocation record on both transactional and streaming paths, and that its
 // absence leaves Model nil (spec 0003 scoping decision 8).
 func TestHandleModelHeader(t *testing.T) {
@@ -1701,11 +1701,11 @@ func TestHandleModelHeader(t *testing.T) {
 		h.RegisterRoutes(mux)
 
 		req := authedPostRequest(t, "/v1/proxy/"+agentID, []byte(`{}`), testTenant, testUser)
-		req.Header.Set("X-Farcaster-Model", wantModel)
+		req.Header.Set("X-Zerker-Model", wantModel)
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 
-		invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+		invID := rec.Header().Get("X-Zerker-Invocation-ID")
 		inv := waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 		if inv.Model == nil {
@@ -1732,7 +1732,7 @@ func TestHandleModelHeader(t *testing.T) {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 
-		invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+		invID := rec.Header().Get("X-Zerker-Invocation-ID")
 		inv := waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 		if inv.Model != nil {
@@ -1753,11 +1753,11 @@ func TestHandleModelHeader(t *testing.T) {
 		h.RegisterRoutes(mux)
 
 		req := authedPostRequest(t, "/v1/proxy/"+agentID+"/stream", []byte(`{}`), testTenant, testUser)
-		req.Header.Set("X-Farcaster-Model", wantModel)
+		req.Header.Set("X-Zerker-Model", wantModel)
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 
-		invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+		invID := rec.Header().Get("X-Zerker-Invocation-ID")
 		inv, err := invStore.Get(context.Background(), testTenant, invID)
 		if err != nil {
 			t.Fatalf("get invocation: %v", err)
@@ -1786,7 +1786,7 @@ func TestHandleModelHeader(t *testing.T) {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 
-		invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+		invID := rec.Header().Get("X-Zerker-Invocation-ID")
 		inv, err := invStore.Get(context.Background(), testTenant, invID)
 		if err != nil {
 			t.Fatalf("get invocation: %v", err)
@@ -1797,7 +1797,7 @@ func TestHandleModelHeader(t *testing.T) {
 	})
 }
 
-// TestHandleModelHeaderTooLong verifies that an X-Farcaster-Model header longer
+// TestHandleModelHeaderTooLong verifies that an X-Zerker-Model header longer
 // than the handler's cap (maxModelNameBytes) is rejected at the boundary with
 // 400 on both proxy paths, before any invocation record is created (AGENTS.md
 // invariant #3 — validate inbound payloads; spec 0003).
@@ -1834,7 +1834,7 @@ func TestHandleModelHeaderTooLong(t *testing.T) {
 				path += "/stream"
 			}
 			req := authedPostRequest(t, path, []byte(`{}`), testTenant, testUser)
-			req.Header.Set("X-Farcaster-Model", oversize)
+			req.Header.Set("X-Zerker-Model", oversize)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
@@ -1842,8 +1842,8 @@ func TestHandleModelHeaderTooLong(t *testing.T) {
 				t.Fatalf("status = %d, want 400; body = %s", rec.Code, rec.Body.String())
 			}
 			// Rejected before Create: no invocation ID header is emitted.
-			if id := rec.Header().Get("X-Farcaster-Invocation-ID"); id != "" {
-				t.Errorf("X-Farcaster-Invocation-ID = %q, want empty (rejected before create)", id)
+			if id := rec.Header().Get("X-Zerker-Invocation-ID"); id != "" {
+				t.Errorf("X-Zerker-Invocation-ID = %q, want empty (rejected before create)", id)
 			}
 		})
 	}
@@ -1878,9 +1878,9 @@ func TestHandleTransactDrainOnShutdown(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	if !strings.HasPrefix(invID, "inv_") {
-		t.Fatalf("X-Farcaster-Invocation-ID = %q, want inv_ prefix", invID)
+		t.Fatalf("X-Zerker-Invocation-ID = %q, want inv_ prefix", invID)
 	}
 
 	// Wait until the goroutine is running (invocation transitions to running).
@@ -1974,7 +1974,7 @@ func TestHandleTransact_MCPSessionIDForwardedToForwarder(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	if fwd.gotDoHeader == nil {

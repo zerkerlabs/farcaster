@@ -305,8 +305,8 @@ func TestXRequestIDHonored(t *testing.T) {
 	}
 }
 
-// TestXRequestIDInjected verifies that Farcaster injects an X-Request-ID when
-// the caller does not supply one (spec 0002 §Q5: "otherwise Farcaster injects
+// TestXRequestIDInjected verifies that Zerker injects an X-Request-ID when
+// the caller does not supply one (spec 0002 §Q5: "otherwise Zerker injects
 // one").
 func TestXRequestIDInjected(t *testing.T) {
 	t.Parallel()
@@ -336,14 +336,14 @@ func TestXRequestIDInjected(t *testing.T) {
 	}
 }
 
-// TestXFarcasterHeadersSpoofPrevented verifies that a caller cannot inject
-// X-Farcaster-* headers — they are stripped before forwarding.
-func TestXFarcasterHeadersSpoofPrevented(t *testing.T) {
+// TestXZerkerHeadersSpoofPrevented verifies that a caller cannot inject
+// X-Zerker-* headers — they are stripped before forwarding.
+func TestXZerkerHeadersSpoofPrevented(t *testing.T) {
 	t.Parallel()
 
 	var upstreamAgentID string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		upstreamAgentID = r.Header.Get("X-Farcaster-Agent-ID")
+		upstreamAgentID = r.Header.Get("X-Zerker-Agent-ID")
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(upstream.Close)
@@ -353,7 +353,7 @@ func TestXFarcasterHeadersSpoofPrevented(t *testing.T) {
 	f := proxy.New(store, &stubCredSvc{}, noRetryConfig(upstream.Client()), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Farcaster-Agent-ID", "agt_spoofed") // caller tries to spoof
+	req.Header.Set("X-Zerker-Agent-ID", "agt_spoofed") // caller tries to spoof
 
 	result, err := f.Do(context.Background(), testTenant, agentID, "", req)
 	if err != nil {
@@ -364,10 +364,10 @@ func TestXFarcasterHeadersSpoofPrevented(t *testing.T) {
 	// The upstream should see the real agent ID set by the forwarder, not the
 	// spoofed value.
 	if upstreamAgentID == "agt_spoofed" {
-		t.Error("caller-supplied X-Farcaster-Agent-ID must be stripped before forwarding")
+		t.Error("caller-supplied X-Zerker-Agent-ID must be stripped before forwarding")
 	}
 	if upstreamAgentID != agentID {
-		t.Errorf("upstream X-Farcaster-Agent-ID = %q, want %q", upstreamAgentID, agentID)
+		t.Errorf("upstream X-Zerker-Agent-ID = %q, want %q", upstreamAgentID, agentID)
 	}
 }
 

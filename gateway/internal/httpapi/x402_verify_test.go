@@ -280,8 +280,8 @@ func TestHandleTransact_X402_ForwardsWithInjectedVerifier(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 }
 
@@ -303,7 +303,7 @@ func TestHandleStream_X402_ForwardsWithInjectedVerifier(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 }

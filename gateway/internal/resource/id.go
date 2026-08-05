@@ -1,6 +1,6 @@
-// Package resource provides shared utilities for Farcaster resource identifiers.
+// Package resource provides shared utilities for Zerker resource identifiers.
 //
-// Every resource type in Farcaster is identified by a prefixed opaque string of
+// Every resource type in Zerker is identified by a prefixed opaque string of
 // the form "<prefix>_<uuidv7>" (ADR-0009). This package owns the generation
 // logic so individual resource types do not hand-roll IDs.
 package resource

@@ -1,6 +1,6 @@
 ---
 title: Configuration reference
-description: Every environment variable the Farcaster gateway reads — generated from the gateway's own config manifest.
+description: Every environment variable the Zerker gateway reads — generated from the gateway's own config manifest.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -18,7 +18,7 @@ that isn't documented here, so this reference can't silently fall behind the
 code.
 </Aside>
 
-The two `FARCASTER_OIDC_*` **required** variables have no default — the gateway
+The two `ZERKER_OIDC_*` **required** variables have no default — the gateway
 refuses to start without them (see [Install](/install/) and
 [Auth & multi-tenancy](/concepts/auth-and-multi-tenancy/)). Everything
 else has a safe default or a dev-only fallback; the [Deployment](/self-hosting/deployment/),
@@ -27,7 +27,7 @@ pages cover the production-relevant ones in context.
 
 <ConfigReference />
 
-Secrets (`FARCASTER_DATABASE_URL`, `FARCASTER_KMS_KEY`, and any provider
+Secrets (`ZERKER_DATABASE_URL`, `ZERKER_KMS_KEY`, and any provider
 credentials) should come from your platform's secret store or an injected
 environment, never from a committed file — see
 [KMS & secrets](/self-hosting/kms-and-secrets/).

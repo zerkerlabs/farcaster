@@ -1,4 +1,4 @@
-// Package proxy implements the upstream forwarding engine for the Farcaster
+// Package proxy implements the upstream forwarding engine for the Zerker
 // routing/proxy surface (spec 0002, implementation item #4). It is shared by
 // both the transactional and streaming proxy endpoints.
 package proxy
@@ -204,7 +204,7 @@ func New(agents agent.AgentStore, credSvc CredentialService, cfg Config, logger 
 // policy, and forwards r to the upstream. It retries retriable errors up to
 // MaxRetries times and enforces the per-upstream circuit breaker.
 //
-// invocationID is an inv_<uuid> forwarded as X-Farcaster-Invocation-ID; pass
+// invocationID is an inv_<uuid> forwarded as X-Zerker-Invocation-ID; pass
 // an empty string if the record has not yet been created.
 //
 // Do buffers r.Body so retries can replay it — r.Body is fully consumed on
@@ -453,7 +453,7 @@ func (f *Forwarder) doOnce(ctx context.Context, upstreamURL string, orig *http.R
 }
 
 // buildUpstreamRequest constructs the outbound request: copies allowed caller
-// headers, sets X-Farcaster-* metadata, ensures X-Request-ID, and injects the
+// headers, sets X-Zerker-* metadata, ensures X-Request-ID, and injects the
 // upstream credential.
 func buildUpstreamRequest(ctx context.Context, upstreamURL string, orig *http.Request, body []byte, requestID string, credAuthType credential.AuthType, credPlaintext []byte, tenantID, agentID, invocationID string) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -467,10 +467,10 @@ func buildUpstreamRequest(ctx context.Context, upstreamURL string, orig *http.Re
 
 	copyHeaders(orig.Header, req.Header)
 	req.Header.Set("X-Request-ID", requestID)
-	req.Header.Set("X-Farcaster-Agent-ID", agentID)
-	req.Header.Set("X-Farcaster-Tenant-ID", tenantID)
+	req.Header.Set("X-Zerker-Agent-ID", agentID)
+	req.Header.Set("X-Zerker-Tenant-ID", tenantID)
 	if invocationID != "" {
-		req.Header.Set("X-Farcaster-Invocation-ID", invocationID)
+		req.Header.Set("X-Zerker-Invocation-ID", invocationID)
 	}
 	injectCredential(req.Header, credAuthType, credPlaintext)
 

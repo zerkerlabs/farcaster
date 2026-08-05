@@ -1,4 +1,4 @@
-// Package server wires the Farcaster gateway's HTTP surface.
+// Package server wires the Zerker gateway's HTTP surface.
 //
 // Operational endpoints (/healthz, /version) are always registered. Agent
 // Catalog routes (/v1/agents) are registered when cfg.Store is non-nil, and

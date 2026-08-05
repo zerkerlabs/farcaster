@@ -1,4 +1,4 @@
-// Package version exposes build metadata for the Farcaster gateway.
+// Package version exposes build metadata for the Zerker gateway.
 //
 // Values are overridden at build time via -ldflags, e.g.:
 //

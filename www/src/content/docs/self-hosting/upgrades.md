@@ -37,7 +37,7 @@ practice.
 
 ## The KMS key must not change
 
-An upgrade must keep the **same [`FARCASTER_KMS_KEY`](/self-hosting/kms-and-secrets/)**
+An upgrade must keep the **same [`ZERKER_KMS_KEY`](/self-hosting/kms-and-secrets/)**
 as the running deployment. It's the root key for every stored credential;
 starting an upgraded instance with a different (or absent) key means it can't
 decrypt existing credentials. Carry the key forward unchanged unless you are

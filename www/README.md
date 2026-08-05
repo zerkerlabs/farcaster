@@ -1,18 +1,18 @@
-# Farcaster website (`www/`)
+# Zerker website (`www/`)
 
 The developer documentation site, [Astro](https://astro.build) +
 [Starlight](https://starlight.astro.build), deployed to
-**docs.farcastergateway.com**. The repo's only Node/JS toolchain — it sits
+**docs.zerker.ai**. The repo's only Node/JS toolchain — it sits
 outside the Go workspace (`go.work`).
 
 The product-facing marketing site is a separate repo,
 [`zerkerlabs/farcastergateway`](https://github.com/zerkerlabs/farcastergateway),
-serving farcastergateway.com. This project is docs only.
+serving zerker.ai. This project is docs only.
 
 ## Layout
 
 - `src/content/docs/` — the docs tree. Starlight owns the site root, so a page
-  at `src/content/docs/<path>` serves at `/<path>/`: "What is Farcaster" is `/`
+  at `src/content/docs/<path>` serves at `/<path>/`: "What is Zerker" is `/`
   and Quickstart is `/quickstart/`. Some sections are still shell stubs.
 - `vercel.json` — forwards the old `/docs/...` URLs to their new root-level
   homes, so links published before the move keep resolving. The redirect uses

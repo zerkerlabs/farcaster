@@ -1,4 +1,4 @@
-// Package db provides database lifecycle helpers for Farcaster. The only
+// Package db provides database lifecycle helpers for Zerker. The only
 // exported entry point for regular use is Migrate, which applies any pending
 // numbered SQL migrations to the target database.
 package db
@@ -35,11 +35,11 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 	// Serialize concurrent migrators across instances: a second instance blocks
 	// here until the first finishes, instead of racing on schema_migrations.
-	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('farcaster_migrate'))`); err != nil {
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('zerker_migrate'))`); err != nil {
 		return fmt.Errorf("acquire migrate lock: %w", err)
 	}
 	defer func() {
-		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext('farcaster_migrate'))`)
+		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext('zerker_migrate'))`)
 	}()
 
 	if _, err := conn.Exec(ctx, `

@@ -7,7 +7,7 @@ The [routing & proxy](/gateway/proxy/) layer is protocol-agnostic by
 design — it forwards whatever bytes the caller sends and returns whatever
 bytes come back. That already lets [Model Context
 Protocol](https://modelcontextprotocol.io) (MCP) traffic pass through
-Farcaster as raw JSON-RPC. Declaring `protocol=mcp` on the agent turns that
+Zerker as raw JSON-RPC. Declaring `protocol=mcp` on the agent turns that
 dumb pipe into an MCP-aware one: the same credential injection, SSRF
 protection, and rate limiting, plus method- and tool-level observability
 instead of an opaque request blob.
@@ -15,7 +15,7 @@ instead of an opaque request blob.
 ## Registering an MCP agent
 
 Set `protocol` to `mcp` and `mcp_transport` to `streamable_http` — the only
-transport Farcaster supports today:
+transport Zerker supports today:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
@@ -32,7 +32,7 @@ MCP servers; see [Agent Catalog](/gateway/catalog/).
 **Only `streamable_http` is supported.** `stdio` is rejected at write time
 with `400` — it is a local-process transport with no URL and no TLS, a
 categorically different (client-side) shape than a stateless HTTP forwarder
-handles; if Farcaster ever supports it, it belongs in a client SDK, not the
+handles; if Zerker ever supports it, it belongs in a client SDK, not the
 gateway. Legacy HTTP+SSE is reserved but not yet accepted.
 
 ## No new endpoints — reuse the proxy surface
@@ -51,19 +51,19 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
      localhost:8080/v1/proxy/{id}/stream
 ```
 
-## Farcaster is a transparent pipe for the session
+## Zerker is a transparent pipe for the session
 
 The caller owns the MCP session: it runs `initialize`, manages
-`Mcp-Session-Id`, and sequences calls. Farcaster forwards headers and bodies
+`Mcp-Session-Id`, and sequences calls. Zerker forwards headers and bodies
 with **no server-side session state** — `Mcp-Session-Id` already passes
 through both directions with zero special-casing, since it isn't in the
-proxy's stripped-header block-list. Farcaster does not track capability
+proxy's stripped-header block-list. Zerker does not track capability
 negotiation or cache `initialize` results.
 
 ## Method and tool-level observability
 
-Unlike a generic upstream body (opaque to Farcaster), MCP's JSON-RPC envelope
-is a small, stable, known shape. Farcaster parses it to extract the `method`
+Unlike a generic upstream body (opaque to Zerker), MCP's JSON-RPC envelope
+is a small, stable, known shape. Zerker parses it to extract the `method`
 and, for `tools/call`, `params.name`, and stores them on the invocation record
 as `mcp_method` / `mcp_tool` — visible on `GET /v1/invocations` and
 `GET /v1/proxy/{id}/invocations/{inv_id}`. This is the difference between "an

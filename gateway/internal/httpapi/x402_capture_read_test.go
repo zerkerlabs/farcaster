@@ -24,7 +24,7 @@ func TestHandleTransact_UnpricedAgentLeavesPaymentFieldsNull(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	got := pollInvocation(t, mux, agentID, invID)

@@ -111,7 +111,7 @@ func TestHandleTransact_SettleForwardMatrix(t *testing.T) {
 			if rec.Code != http.StatusAccepted {
 				t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 			}
-			invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+			invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 			inv := waitInvocationTerminal(t, invStore, invID)
 			if inv.Status != tt.wantStatus {
@@ -182,7 +182,7 @@ func TestHandleStream_SettleThenForward_UpstreamTerminalFail_SettledUpstreamFail
 		t.Errorf("forwarder called %d times, want 1 (settlement must precede the forward attempt)", fwd.calls.Load())
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusFailed {
 		t.Fatalf("Status = %q, want failed", inv.Status)

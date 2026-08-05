@@ -4,26 +4,26 @@
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `FARCASTER_ADDR` | No | `:8080` | TCP address the gateway's HTTP server listens on. |
+| `ZERKER_ADDR` | No | `:8080` | TCP address the gateway's HTTP server listens on. |
 
 ### Storage
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `FARCASTER_DATABASE_URL`<br />or `DATABASE_URL` | No | — | PostgreSQL connection string (pgx DSN). When unset, the gateway falls back to a non-durable in-memory store — development only; all state is lost on restart. `DATABASE_URL` is honored as a fallback. Migrations are applied automatically on boot. |
+| `ZERKER_DATABASE_URL`<br />or `DATABASE_URL` | No | — | PostgreSQL connection string (pgx DSN). When unset, the gateway falls back to a non-durable in-memory store — development only; all state is lost on restart. `DATABASE_URL` is honored as a fallback. Migrations are applied automatically on boot. |
 
 ### Authentication (OIDC)
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `FARCASTER_OIDC_ISSUER` | Yes | — | OIDC issuer base URL used for provider discovery. The gateway refuses to start without it — there is no unauthenticated path to bring it up. |
-| `FARCASTER_OIDC_AUDIENCE` | Yes | — | Expected value of the JWT `aud` claim. The gateway refuses to start without it. |
-| `FARCASTER_OIDC_TENANT_CLAIM` | Yes | — | JWT claim carrying the tenant/client identifier. Provider-specific, so there is no default — the gateway refuses to start without it. |
-| `FARCASTER_OIDC_USER_CLAIM` | No | `sub` | JWT claim carrying the acting user's subject. `sub` is the OIDC standard. |
-| `FARCASTER_OIDC_SCOPE_CLAIM` | No | `scope` | JWT claim carrying the token's OAuth scopes (a space-separated string or a JSON array). Leave empty to disable scope extraction. `scp` is common on Microsoft/Auth0. |
+| `ZERKER_OIDC_ISSUER` | Yes | — | OIDC issuer base URL used for provider discovery. The gateway refuses to start without it — there is no unauthenticated path to bring it up. |
+| `ZERKER_OIDC_AUDIENCE` | Yes | — | Expected value of the JWT `aud` claim. The gateway refuses to start without it. |
+| `ZERKER_OIDC_TENANT_CLAIM` | Yes | — | JWT claim carrying the tenant/client identifier. Provider-specific, so there is no default — the gateway refuses to start without it. |
+| `ZERKER_OIDC_USER_CLAIM` | No | `sub` | JWT claim carrying the acting user's subject. `sub` is the OIDC standard. |
+| `ZERKER_OIDC_SCOPE_CLAIM` | No | `scope` | JWT claim carrying the token's OAuth scopes (a space-separated string or a JSON array). Leave empty to disable scope extraction. `scp` is common on Microsoft/Auth0. |
 
 ### Secrets & KMS
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `FARCASTER_KMS_KEY` | No | — | Hex-encoded 32-byte (64 hex chars) master key for the local KMS provider, which envelope-encrypts stored credentials. When unset, a random ephemeral key is generated that does not survive a restart — never run production without setting it. |
+| `ZERKER_KMS_KEY` | No | — | Hex-encoded 32-byte (64 hex chars) master key for the local KMS provider, which envelope-encrypts stored credentials. When unset, a random ephemeral key is generated that does not survive a restart — never run production without setting it. |

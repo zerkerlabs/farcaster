@@ -114,7 +114,7 @@ func TestX402Gate_FullFlow(t *testing.T) {
 
 			// 3. Replaying the identical authorization -> rejected (best-effort
 			// nonce guard, spec 0005 T6): the chain never consumed this nonce (v1
-			// never settles), but Farcaster's local guard catches the re-presented
+			// never settles), but Zerker's local guard catches the re-presented
 			// payload.
 			rec = httptest.NewRecorder()
 			mux.ServeHTTP(rec, gatePostRequest(path, validHeader))

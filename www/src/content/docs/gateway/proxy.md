@@ -1,17 +1,17 @@
 ---
 title: Routing & proxy
-description: How Farcaster forwards calls to a registered agent's upstream — transactional and streaming, verbatim body, header-carried metadata.
+description: How Zerker forwards calls to a registered agent's upstream — transactional and streaming, verbatim body, header-carried metadata.
 ---
 
 Once an agent has an `upstream_url` (see [Agent Catalog](/gateway/catalog/)),
-Farcaster sits in its traffic path. A caller invokes the agent through
-Farcaster instead of calling the upstream directly, and Farcaster resolves the
+Zerker sits in its traffic path. A caller invokes the agent through
+Zerker instead of calling the upstream directly, and Zerker resolves the
 upstream, injects the agent's credential, forwards the call, and records what
 happened.
 
 ## Two invocation modes, one addressing scheme
 
-Farcaster offers two endpoints for the same agent, and the caller picks by use
+Zerker offers two endpoints for the same agent, and the caller picks by use
 case:
 
 | Mode | Endpoint | Shape |
@@ -20,7 +20,7 @@ case:
 | **Streaming** | `POST /v1/proxy/{id}/stream` | A long-lived connection; request and response bodies stream through verbatim, no buffering. |
 
 Both return an invocation ID (`inv_<uuidv7>`) — in the body for transactional
-calls, in the `X-Farcaster-Invocation-ID` response header for streaming — so
+calls, in the `X-Zerker-Invocation-ID` response header for streaming — so
 every call is addressable in [observability & analytics](/gateway/observability/)
 regardless of which mode you used.
 
@@ -30,7 +30,7 @@ regardless of which mode you used.
 curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
      -d '{}' \
      localhost:8080/v1/proxy/{id}
-# 202 Accepted, X-Farcaster-Invocation-ID: inv_...
+# 202 Accepted, X-Zerker-Invocation-ID: inv_...
 # { "invocation_id": "inv_..." }
 ```
 
@@ -46,7 +46,7 @@ curl -N -H "Authorization: Bearer $TOKEN" \
      localhost:8080/v1/proxy/{id}/stream
 ```
 
-`X-Farcaster-Invocation-ID` is set on the response before any upstream byte is
+`X-Zerker-Invocation-ID` is set on the response before any upstream byte is
 written, regardless of outcome. This suits token-by-token responses (SSE) or
 hefty payloads where transactional polling would add latency.
 
@@ -58,14 +58,14 @@ upstream call is made.
 
 ## Body verbatim, metadata in headers
 
-Farcaster forwards the caller's request body **unmodified** to the upstream —
-there is no Farcaster envelope to unwrap. Correlation and control metadata
-rides in `X-Farcaster-*` response headers and a small set of request headers
+Zerker forwards the caller's request body **unmodified** to the upstream —
+there is no Zerker envelope to unwrap. Correlation and control metadata
+rides in `X-Zerker-*` response headers and a small set of request headers
 instead:
 
-- **`X-Request-ID`** — every proxied request carries one; Farcaster honors the
+- **`X-Request-ID`** — every proxied request carries one; Zerker honors the
   caller's if present, otherwise injects one.
-- **`X-Farcaster-Model`** — optional, caller-supplied, recorded on the
+- **`X-Zerker-Model`** — optional, caller-supplied, recorded on the
   invocation for observability (capped at 256 bytes; see
   [Observability & analytics](/gateway/observability/)).
 - The caller's `Authorization` header is always stripped before forwarding —
@@ -77,7 +77,7 @@ endpoint has no cap.
 
 ## Credentials, retries, and failure modes
 
-Farcaster resolves the agent's `credential_ref` and injects it into the
+Zerker resolves the agent's `credential_ref` and injects it into the
 upstream call at invocation time — never from the caller's request (see
 [Agent Catalog](/gateway/catalog/#credentials-are-a-separate-resource)).
 Transient upstream failures are retried, and a circuit breaker opens on a
@@ -95,7 +95,7 @@ never told to pay. Each rule resolves to one of three actions:
 - **allow** — forwarded unchanged (also the behavior when no rule matches and
   the policy's `default` is `allow`).
 - **warn** — forwarded like allow, but the transactional response carries an
-  `X-Farcaster-Policy-Warning` header and the decision is recorded.
+  `X-Zerker-Policy-Warning` header and the decision is recorded.
 - **deny** — the call is rejected with `403` and a single coarse reason; it is
   never forwarded.
 

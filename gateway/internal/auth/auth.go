@@ -1,5 +1,5 @@
 // Package auth provides OAuth 2.0 / OIDC bearer-token validation middleware
-// for the Farcaster gateway. The middleware is provider-agnostic at runtime:
+// for the Zerker gateway. The middleware is provider-agnostic at runtime:
 // all provider-specific parameters (issuer URL, audience, claim names) are
 // supplied through Config, not compiled in.
 package auth
@@ -32,22 +32,22 @@ const (
 // actually deployed.
 type Config struct {
 	// IssuerURL is the OIDC issuer base URL used for provider discovery.
-	// Environment variable: FARCASTER_OIDC_ISSUER
+	// Environment variable: ZERKER_OIDC_ISSUER
 	IssuerURL string
 
 	// Audience is the expected value of the "aud" JWT claim.
-	// Environment variable: FARCASTER_OIDC_AUDIENCE
+	// Environment variable: ZERKER_OIDC_AUDIENCE
 	Audience string
 
 	// TenantClaim names the JWT claim that carries the tenant/client identifier.
 	// The correct name is provider-specific, so unlike UserClaim there is no
 	// default; it must be set explicitly.
-	// Environment variable: FARCASTER_OIDC_TENANT_CLAIM
+	// Environment variable: ZERKER_OIDC_TENANT_CLAIM
 	TenantClaim string
 
 	// UserClaim names the JWT claim that carries the acting user's subject.
 	// "sub" is the OIDC standard; override if the provider uses a different claim.
-	// Environment variable: FARCASTER_OIDC_USER_CLAIM
+	// Environment variable: ZERKER_OIDC_USER_CLAIM
 	UserClaim string
 
 	// ScopeClaim names the JWT claim that carries the token's OAuth scopes.
@@ -55,7 +55,7 @@ type Config struct {
 	// JSON array of strings; both are supported. Leave empty to disable scope
 	// extraction (all tokens will carry no scopes). "scope" is the standard
 	// value; "scp" is common in Microsoft/Auth0 environments.
-	// Environment variable: FARCASTER_OIDC_SCOPE_CLAIM
+	// Environment variable: ZERKER_OIDC_SCOPE_CLAIM
 	ScopeClaim string
 
 	// HTTPClient overrides the HTTP client used for OIDC discovery and JWKS
@@ -69,11 +69,11 @@ type Config struct {
 // to initialise.
 func ConfigFromEnv() Config {
 	return Config{
-		IssuerURL:   os.Getenv("FARCASTER_OIDC_ISSUER"),
-		Audience:    os.Getenv("FARCASTER_OIDC_AUDIENCE"),
-		TenantClaim: os.Getenv("FARCASTER_OIDC_TENANT_CLAIM"),
-		UserClaim:   envOrDefault("FARCASTER_OIDC_USER_CLAIM", "sub"),
-		ScopeClaim:  envOrDefault("FARCASTER_OIDC_SCOPE_CLAIM", "scope"),
+		IssuerURL:   os.Getenv("ZERKER_OIDC_ISSUER"),
+		Audience:    os.Getenv("ZERKER_OIDC_AUDIENCE"),
+		TenantClaim: os.Getenv("ZERKER_OIDC_TENANT_CLAIM"),
+		UserClaim:   envOrDefault("ZERKER_OIDC_USER_CLAIM", "sub"),
+		ScopeClaim:  envOrDefault("ZERKER_OIDC_SCOPE_CLAIM", "scope"),
 	}
 }
 
@@ -125,13 +125,13 @@ func HasScope(ctx context.Context, scope string) bool {
 // with no indication why).
 func NewMiddleware(ctx context.Context, cfg Config, logger *slog.Logger) (func(http.Handler) http.Handler, error) {
 	if cfg.IssuerURL == "" {
-		return nil, fmt.Errorf("auth: IssuerURL is required (set FARCASTER_OIDC_ISSUER)")
+		return nil, fmt.Errorf("auth: IssuerURL is required (set ZERKER_OIDC_ISSUER)")
 	}
 	if cfg.Audience == "" {
-		return nil, fmt.Errorf("auth: Audience is required (set FARCASTER_OIDC_AUDIENCE)")
+		return nil, fmt.Errorf("auth: Audience is required (set ZERKER_OIDC_AUDIENCE)")
 	}
 	if cfg.TenantClaim == "" {
-		return nil, fmt.Errorf("auth: TenantClaim is required (set FARCASTER_OIDC_TENANT_CLAIM)")
+		return nil, fmt.Errorf("auth: TenantClaim is required (set ZERKER_OIDC_TENANT_CLAIM)")
 	}
 
 	if cfg.HTTPClient != nil {

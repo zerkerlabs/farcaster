@@ -15,7 +15,7 @@ import (
 	"github.com/zerkerlabs/farcaster/rooms/internal/room"
 )
 
-// countingGateway wraps an httptest server standing in for the Farcaster
+// countingGateway wraps an httptest server standing in for the Zerker
 // gateway and records every request path it receives, so tests can assert
 // exactly one proxied call was made and that no other outbound request
 // happened.

@@ -3,7 +3,7 @@
 --   ttft_ms     — time-to-first-byte in ms on the streaming path; NULL for
 --                 transactional or when no bytes were streamed
 --   error_class — coarse error taxonomy set by the proxy on failure; NULL on success
---   model       — caller-supplied model name (X-Farcaster-Model header); NULL if absent
+--   model       — caller-supplied model name (X-Zerker-Model header); NULL if absent
 -- All nullable; no backfill (forward-only per scoping decision 7).
 -- Adds two indexes to support analytics + filtered list queries (spec 0003 §Behavior).
 

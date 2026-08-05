@@ -131,7 +131,7 @@ func TestHandleTransact_SettleThenForward_Success(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusSucceeded {
@@ -191,7 +191,7 @@ func TestHandleTransact_SettleThenForward_FeeSplit(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, verifyRequest(t, "/v1/proxy/"+agentID))
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.FacilitatorFee == nil || *inv.FacilitatorFee != "300" {
@@ -234,7 +234,7 @@ func TestHandleTransact_SettleFailure_NoForward(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (invocation still created; settlement happens async); body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusFailed {
@@ -287,7 +287,7 @@ func TestHandleTransact_SettleTransientFailure_RetriesThenSucceeds(t *testing.T)
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, verifyRequest(t, "/v1/proxy/"+agentID))
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusSucceeded {
@@ -332,7 +332,7 @@ func TestHandleTransact_SettleTransientFailure_ExhaustsRetries(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, verifyRequest(t, "/v1/proxy/"+agentID))
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusFailed {
@@ -380,7 +380,7 @@ func TestHandleTransact_NoFacilitatorConfigured_GateOnlyUnchanged(t *testing.T) 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	inv := waitInvocationTerminal(t, invStore, invID)
 	if inv.Status != invocation.StatusSucceeded {
@@ -432,7 +432,7 @@ func TestHandleTransact_SettleEnabled_ReplayPreFilterStillRejects(t *testing.T) 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("first call status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitInvocationTerminal(t, invStore, invID)
 
 	// Replay of the same (payer, nonce): rejected by the local pre-filter before

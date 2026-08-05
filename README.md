@@ -1,8 +1,8 @@
-# Farcaster
+# Zerker
 
 > An open gateway to manage, analyze, and productize agents and agentic workflows.
 
-Farcaster is the control plane in front of agent traffic — routing, policy,
+Zerker is the control plane in front of agent traffic — routing, policy,
 observability, and payment metering. It is a single Go binary you can self-host:
 own your gateway, own your keys, no custody handed to anyone.
 
@@ -10,10 +10,10 @@ It composes with the rest of the Zerker stack:
 [Treeship](https://github.com/zerkerlabs/treeship) (portable trust receipts) and
 [Zmem](https://github.com/zerkerlabs/zmem) (verifiable agent memory).
 
-**Documentation:** <https://docs.farcastergateway.com> — guides, concepts, and
+**Documentation:** <https://docs.zerker.ai> — guides, concepts, and
 the generated API reference. The site is built from [`www/`](www/) in this repo,
 so docs ship with the code they describe. The product site lives separately at
-<https://farcastergateway.com>.
+<https://zerker.ai>.
 
 ## What's here
 
@@ -31,14 +31,14 @@ not a Go module, so it sits outside `go.work` and carries its own gate.
 
 ## Quickstart
 
-**The gateway requires OIDC configuration to start** — `FARCASTER_OIDC_ISSUER`
-and `FARCASTER_OIDC_AUDIENCE` must be set, or the process exits immediately. This
+**The gateway requires OIDC configuration to start** — `ZERKER_OIDC_ISSUER`
+and `ZERKER_OIDC_AUDIENCE` must be set, or the process exits immediately. This
 is a deliberate security invariant; there is no bypass.
 
 ### Local dev (mock OIDC)
 
 `make dev-auth` boots a throwaway mock OIDC issuer and the gateway together, and
-writes a ready-to-use bearer token to `/tmp/farcaster-dev-token`:
+writes a ready-to-use bearer token to `/tmp/zerker-dev-token`:
 
 ```bash
 make dev-auth                   # mock issuer + gateway on :8080
@@ -48,7 +48,7 @@ curl localhost:8080/healthz     # -> {"status":"ok"}
 curl localhost:8080/version
 
 # authenticated endpoints:
-TOKEN=$(cat /tmp/farcaster-dev-token)
+TOKEN=$(cat /tmp/zerker-dev-token)
 curl -H "Authorization: Bearer $TOKEN" localhost:8080/v1/agents
 ```
 
@@ -57,20 +57,20 @@ production.
 
 ### Production
 
-Point `FARCASTER_OIDC_ISSUER` at your IdP (Auth0, Okta, Google, …) and set
-`FARCASTER_OIDC_AUDIENCE` to the audience your IdP issues:
+Point `ZERKER_OIDC_ISSUER` at your IdP (Auth0, Okta, Google, …) and set
+`ZERKER_OIDC_AUDIENCE` to the audience your IdP issues:
 
 ```bash
-FARCASTER_OIDC_ISSUER=https://your-idp.example.com \
-FARCASTER_OIDC_AUDIENCE=your-audience \
+ZERKER_OIDC_ISSUER=https://your-idp.example.com \
+ZERKER_OIDC_AUDIENCE=your-audience \
   make run
 ```
 
 By default the gateway uses an in-memory store (agents are lost on restart). Set
-`FARCASTER_DATABASE_URL` to back it with Postgres:
+`ZERKER_DATABASE_URL` to back it with Postgres:
 
 ```bash
-FARCASTER_DATABASE_URL="postgres://user:pass@localhost:5432/farcaster?sslmode=disable" make run
+ZERKER_DATABASE_URL="postgres://user:pass@localhost:5432/zerker?sslmode=disable" make run
 ```
 
 ## Build & test

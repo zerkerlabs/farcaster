@@ -1,10 +1,10 @@
 ---
 title: Agent Catalog
-description: Register, list, and manage the agents Farcaster fronts — the system of record every other surface references by ID.
+description: Register, list, and manage the agents Zerker fronts — the system of record every other surface references by ID.
 ---
 
 The catalog is the foundation everything else in the gateway builds on: a
-tenant-scoped system of record for the agents Farcaster fronts. Routing,
+tenant-scoped system of record for the agents Zerker fronts. Routing,
 observability, and the x402 gate all reference a catalog entry by its `id`.
 
 ## The agent record
@@ -52,7 +52,7 @@ An agent never stores a secret directly. `credential_ref` points at a
 credential registered through `POST /v1/credentials` — write-only (the secret
 goes in on create, `GET` returns only metadata and a masked last-4) and
 envelope-encrypted at rest. Deleting a credential still referenced by an agent
-returns `409`. Farcaster injects the referenced credential into upstream calls
+returns `409`. Zerker injects the referenced credential into upstream calls
 at invocation time; it is never echoed back to the caller and never logged.
 
 ## Endpoints

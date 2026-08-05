@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Farcaster Gateway API
+  title: Zerker Gateway API
   version: "1.0.0"
   description: >-
-    The Farcaster gateway's `/v1` REST surface: the Agent Catalog, credential
+    The Zerker gateway's `/v1` REST surface: the Agent Catalog, credential
     vault, transactional/streaming proxy, invocation and analytics
     observability, settlement configuration, and per-tenant policy authoring.
     This document describes
@@ -16,7 +16,7 @@ info:
     Two operational routes (`/healthz`, `/version`) sit outside `/v1` and
     require no authentication (AGENTS.md invariant #1).
   contact:
-    name: Farcaster
+    name: Zerker
     url: https://github.com/zerkerlabs/farcaster
 externalDocs:
   description: docs/specs/ (product specs 0001-0006 this surface implements)
@@ -389,7 +389,7 @@ paths:
           description: Base64-encoded x402 payment payload (spec 0005), required only for priced agents.
           required: false
           schema: { type: string }
-        - name: X-Farcaster-Model
+        - name: X-Zerker-Model
           in: header
           description: Caller-supplied model identifier recorded on the invocation (spec 0003). Max 256 bytes.
           required: false
@@ -404,7 +404,7 @@ paths:
         "202":
           description: Invocation accepted; the upstream call is running asynchronously.
           headers:
-            X-Farcaster-Invocation-ID:
+            X-Zerker-Invocation-ID:
               description: The invocation ID, also present in the body.
               schema: { type: string }
           content:
@@ -412,7 +412,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/InvocationAcceptedResponse"
         "400":
-          description: "`X-Farcaster-Model` exceeds 256 bytes."
+          description: "`X-Zerker-Model` exceeds 256 bytes."
           content:
             application/json:
               schema:
@@ -466,7 +466,7 @@ paths:
       description: >-
         Opens a long-lived connection to the agent's upstream and streams the
         request and response bodies verbatim, without buffering (spec 0002).
-        `X-Farcaster-Invocation-ID` is set on the response before any upstream
+        `X-Zerker-Invocation-ID` is set on the response before any upstream
         byte is written, regardless of outcome. On a settlement-enabled priced
         route (spec 0006), settlement completes before the upstream stream
         opens, and a successful settle's receipt rides the
@@ -477,7 +477,7 @@ paths:
           description: Base64-encoded x402 payment payload (spec 0005), required only for priced agents.
           required: false
           schema: { type: string }
-        - name: X-Farcaster-Model
+        - name: X-Zerker-Model
           in: header
           description: Caller-supplied model identifier recorded on the invocation (spec 0003). Max 256 bytes.
           required: false
@@ -492,7 +492,7 @@ paths:
         "200":
           description: The upstream's response, streamed back verbatim (status, headers, and body are the upstream's own — this describes the success shape, not a fixed status code).
           headers:
-            X-Farcaster-Invocation-ID:
+            X-Zerker-Invocation-ID:
               description: The invocation ID.
               schema: { type: string }
             X-PAYMENT-RESPONSE:
@@ -502,7 +502,7 @@ paths:
             "*/*":
               schema: {}
         "400":
-          description: "`X-Farcaster-Model` exceeds 256 bytes."
+          description: "`X-Zerker-Model` exceeds 256 bytes."
           content:
             application/json:
               schema:
@@ -541,7 +541,7 @@ paths:
         "502":
           description: The upstream was unreachable or refused the connection.
           headers:
-            X-Farcaster-Invocation-ID:
+            X-Zerker-Invocation-ID:
               schema: { type: string }
           content:
             application/json:
@@ -550,7 +550,7 @@ paths:
         "504":
           description: The upstream call timed out.
           headers:
-            X-Farcaster-Invocation-ID:
+            X-Zerker-Invocation-ID:
               schema: { type: string }
           content:
             application/json:
@@ -879,7 +879,7 @@ components:
       bearerFormat: JWT
       description: >-
         An OIDC-issued bearer JWT, validated against the gateway's configured
-        issuer/audience (`FARCASTER_OIDC_ISSUER`/`FARCASTER_OIDC_AUDIENCE`).
+        issuer/audience (`ZERKER_OIDC_ISSUER`/`ZERKER_OIDC_AUDIENCE`).
         The token's tenant and user claims (configurable claim names) become
         the caller's identity; every `/v1` route requires both to be present.
         Missing or invalid tokens return `401` with no body. Some routes also
