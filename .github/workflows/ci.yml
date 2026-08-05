@@ -40,6 +40,19 @@ jobs:
       - name: make check
         run: make -C ${{ matrix.module }} check
 
+  # Always runs, on every PR: it is cheap (a few greps) and the failure it
+  # guards against is one human review has demonstrably missed more than once —
+  # stale pre-rename product strings, and the product being called by the
+  # company's name. See ADR-0015 in zerkerlabs/gateway-strategy, and
+  # scripts/check-naming.sh for the rules and the pinned exceptions.
+  check-naming:
+    name: check naming
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Naming guard (ADR-0015)
+        run: ./scripts/check-naming.sh
+
   # The website (www/) is not a Go module, so it gets its own gate rather than a
   # matrix entry. It is path-aware and always-reporting: the job always runs (so
   # the required status context is never missing and can't deadlock a merge) but
@@ -49,18 +62,6 @@ jobs:
   # itself: the API reference renders from them at build time, so a schema change
   # on a branch that never touches www/ must still rebuild the site and fail
   # loudly if the reference no longer builds against it.
-  # Always runs, on every PR: it is cheap (a few greps) and the failure it
-  # guards against is one that human review has demonstrably missed more than
-  # once — stale `farcaster` strings, and the product being called by the
-  # company's name. See ADR-0015 in zerkerlabs/gateway-strategy.
-  check-naming:
-    name: check naming
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Naming guard (ADR-0015)
-        run: ./scripts/check-naming.sh
-
   check-www:
     name: check www
     runs-on: ubuntu-latest
