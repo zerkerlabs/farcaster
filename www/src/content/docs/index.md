@@ -3,7 +3,7 @@ title: What is Zerker
 description: Zerker is a sovereign, single-binary gateway that routes, observes, and meters agent traffic — self-hosted, with no server-held key.
 ---
 
-Zerker is Zerker's gateway to **manage, analyze, and productize agents and
+Zerker is the gateway to **manage, analyze, and productize agents and
 agentic workflows**. It sits in front of your agent traffic as a single
 self-hostable Go binary and turns raw calls — plain HTTP or MCP — into
 something you can catalog, observe, secure, and (optionally) meter and charge
