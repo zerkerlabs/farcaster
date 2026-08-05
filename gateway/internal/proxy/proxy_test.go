@@ -371,6 +371,38 @@ func TestXZerkerHeadersSpoofPrevented(t *testing.T) {
 	}
 }
 
+// TestLegacyXFarcasterHeadersSpoofPrevented verifies that the pre-rename
+// X-Farcaster-* prefix is still stripped. The gateway no longer emits these,
+// so an upstream still keyed to the old contract would otherwise receive a
+// value supplied entirely by the caller.
+func TestLegacyXFarcasterHeadersSpoofPrevented(t *testing.T) {
+	t.Parallel()
+
+	var upstreamLegacyAgentID string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamLegacyAgentID = r.Header.Get("X-Farcaster-Agent-ID")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(upstream.Close)
+
+	store := agent.NewMemoryStore()
+	agentID := seedAgent(t, store, upstream.URL, nil)
+	f := proxy.New(store, &stubCredSvc{}, noRetryConfig(upstream.Client()), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Farcaster-Agent-ID", "agt_spoofed") // caller tries to spoof
+
+	result, err := f.Do(context.Background(), testTenant, agentID, "", req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_ = result.Body.Close()
+
+	if upstreamLegacyAgentID != "" {
+		t.Errorf("caller-supplied X-Farcaster-Agent-ID = %q, want it stripped before forwarding", upstreamLegacyAgentID)
+	}
+}
+
 // TestMissingUpstreamURL verifies that invoking an agent with no upstream_url
 // returns ErrMissingUpstreamURL without making any upstream call.
 func TestMissingUpstreamURL(t *testing.T) {
