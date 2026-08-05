@@ -49,6 +49,18 @@ jobs:
   # itself: the API reference renders from them at build time, so a schema change
   # on a branch that never touches www/ must still rebuild the site and fail
   # loudly if the reference no longer builds against it.
+  # Always runs, on every PR: it is cheap (a few greps) and the failure it
+  # guards against is one that human review has demonstrably missed more than
+  # once — stale `farcaster` strings, and the product being called by the
+  # company's name. See ADR-0015 in zerkerlabs/gateway-strategy.
+  check-naming:
+    name: check naming
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Naming guard (ADR-0015)
+        run: ./scripts/check-naming.sh
+
   check-www:
     name: check www
     runs-on: ubuntu-latest
