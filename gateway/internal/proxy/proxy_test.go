@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
 )
 
 const (

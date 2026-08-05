@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
 )
 
 func conservativeLimits() guardrail.Limits {

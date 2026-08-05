@@ -17,10 +17,10 @@ info:
     require no authentication (AGENTS.md invariant #1).
   contact:
     name: Zerker
-    url: https://github.com/zerkerlabs/farcaster
+    url: https://github.com/zerkerlabs/gateway
 externalDocs:
   description: docs/specs/ (product specs 0001-0006 this surface implements)
-  url: https://github.com/zerkerlabs/farcaster/tree/main/docs/specs
+  url: https://github.com/zerkerlabs/gateway/tree/main/docs/specs
 servers:
   - url: /
     description: The gateway serves this contract at its own root; no fixed host is baked in (self-hostable).

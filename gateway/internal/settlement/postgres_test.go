@@ -13,10 +13,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/db"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/db"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 // credSeq gives each seeded credential a unique name; the credential store

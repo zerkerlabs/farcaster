@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // erroringMemoryStore is a memory.Store whose Read always fails, used to

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/account"
+	"github.com/zerkerlabs/gateway/facilitator/internal/account"
 )
 
 func TestMemoryStore_LookupNotFound(t *testing.T) {

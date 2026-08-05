@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // Sentinel error categories a *SettleError wraps. They let a caller (the

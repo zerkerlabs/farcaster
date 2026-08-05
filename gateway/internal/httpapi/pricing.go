@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
 )
 
 // pricingNetwork and pricingAsset are the only network/asset v1 accepts for

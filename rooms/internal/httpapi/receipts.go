@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // handleGetReceipts serves GET /v1/rooms/{rom_id}/receipts: the receipts

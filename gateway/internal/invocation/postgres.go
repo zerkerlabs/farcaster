@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/resource"
+	"github.com/zerkerlabs/gateway/gateway/internal/resource"
 )
 
 // PostgresStore is a PostgreSQL-backed, tenant-scoped implementation of Store.

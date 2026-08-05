@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
 )
 
 // putPolicyRequest carries the PUT /v1/policy fields. Unlike PATCH

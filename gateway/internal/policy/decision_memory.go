@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/resource"
+	"github.com/zerkerlabs/gateway/gateway/internal/resource"
 )
 
 // MemoryDecisionStore is a thread-safe, tenant-scoped, in-memory

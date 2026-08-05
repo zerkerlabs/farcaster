@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth/authtest"
 )
 
 func TestOperationalRoutes(t *testing.T) {

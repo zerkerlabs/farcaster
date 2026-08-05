@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 // verifyFwdErr is a minimal ProxyForwarder that always fails, simulating a

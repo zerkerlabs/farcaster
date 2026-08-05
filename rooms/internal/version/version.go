@@ -2,7 +2,7 @@
 //
 // Values are overridden at build time via -ldflags, e.g.:
 //
-//	go build -ldflags "-X github.com/zerkerlabs/farcaster/rooms/internal/version.Version=v0.1.0"
+//	go build -ldflags "-X github.com/zerkerlabs/gateway/rooms/internal/version.Version=v0.1.0"
 package version
 
 // Version is the semantic version of the build. "dev" for local builds.

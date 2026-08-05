@@ -10,13 +10,13 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 // openapiPath is gateway/openapi.yaml, the canonical /v1 REST contract (spec

@@ -1,4 +1,4 @@
-# FARCASTER — CONTRIBUTOR & AGENT GUIDE
+# ZERKER GATEWAY — CONTRIBUTOR & AGENT GUIDE
 
 > Read this first. It is the single source of truth for how Zerker is built —
 > architecture, security invariants, and conventions. It applies equally to human
@@ -6,7 +6,7 @@
 
 ---
 
-## 1. WHAT FARCASTER IS
+## 1. WHAT ZERKER GATEWAY IS
 
 Zerker is an open gateway to **manage, analyze, and productize agents and
 agentic workflows**. It is the control plane that sits in front of agent traffic:

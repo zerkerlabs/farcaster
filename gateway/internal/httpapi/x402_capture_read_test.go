@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
 )
 
 // TestHandleTransact_UnpricedAgentLeavesPaymentFieldsNull is the regression

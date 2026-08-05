@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/config"
+	"github.com/zerkerlabs/gateway/gateway/internal/config"
 )
 
 // defaultOut is relative to the gateway module root, where `make -C gateway`

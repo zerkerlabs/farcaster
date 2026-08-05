@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
 )
 
 // MemoryStore is a thread-safe, in-memory Store for unit tests and local dev

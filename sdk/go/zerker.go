@@ -4,7 +4,7 @@
 // methods land alongside the surfaces they call.
 package zerker
 
-import "github.com/zerkerlabs/farcaster/x402types"
+import "github.com/zerkerlabs/gateway/x402types"
 
 // Payment is the decoded X-PAYMENT payload (x402types wire contract).
 type Payment = x402types.Payment

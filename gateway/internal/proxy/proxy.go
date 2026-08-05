@@ -13,9 +13,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/resource"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/resource"
 )
 
 // Public sentinel errors returned by Forwarder.Do. Endpoint handlers map these

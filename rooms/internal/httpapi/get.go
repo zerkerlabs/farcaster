@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 func (h *Handler) handleGetRoom(w http.ResponseWriter, r *http.Request) {

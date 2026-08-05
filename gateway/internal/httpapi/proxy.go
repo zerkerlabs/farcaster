@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/receipt"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/receipt"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // ttftReader wraps an io.Reader and records the wall-clock time of the first

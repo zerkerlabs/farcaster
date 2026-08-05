@@ -12,11 +12,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/chain"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settle"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/sweep"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/facilitator/internal/chain"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settle"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/internal/sweep"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 const txHashHex = "0x00000000000000000000000000000000000000000000000000000000000000ab"

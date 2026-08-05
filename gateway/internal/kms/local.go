@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/cryptoutil"
+	"github.com/zerkerlabs/gateway/gateway/internal/cryptoutil"
 )
 
 // LocalProvider is a KMS Provider for local development and integration

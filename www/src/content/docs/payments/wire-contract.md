@@ -7,7 +7,7 @@ x402 layers three shapes onto ordinary HTTP: a `402` challenge, a signed
 payment payload the caller replies with, and (once settlement is enabled) a
 settlement receipt. Zerker's gateway, the facilitator, and both SDKs all
 generate their types from the same
-[`x402types/openapi.yaml`](https://github.com/zerkerlabs/farcaster/blob/main/x402types/openapi.yaml)
+[`x402types/openapi.yaml`](https://github.com/zerkerlabs/gateway/blob/main/x402types/openapi.yaml)
 schema — see [Architecture](/concepts/architecture/) — so this page
 describes the schema, not a hand-copied approximation of it. The rendered,
 always-current version of every type below lives in the

@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
 )
 
 func TestLocalProvider_WrapUnwrapRoundtrip(t *testing.T) {

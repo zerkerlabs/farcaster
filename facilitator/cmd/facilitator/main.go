@@ -32,16 +32,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/facilitator/db"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/account"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/chain"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/health"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/mtls"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settle"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/sweep"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/verify"
+	"github.com/zerkerlabs/gateway/facilitator/db"
+	"github.com/zerkerlabs/gateway/facilitator/internal/account"
+	"github.com/zerkerlabs/gateway/facilitator/internal/chain"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/health"
+	"github.com/zerkerlabs/gateway/facilitator/internal/mtls"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settle"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/internal/sweep"
+	"github.com/zerkerlabs/gateway/facilitator/internal/verify"
 )
 
 func main() {

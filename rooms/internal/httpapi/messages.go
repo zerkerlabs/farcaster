@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // postMessageRequest is the request body for POST /v1/rooms/{rom_id}/messages.

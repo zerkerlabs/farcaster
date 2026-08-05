@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/chain"
+	"github.com/zerkerlabs/gateway/facilitator/internal/chain"
 )
 
 type stubChecker struct {

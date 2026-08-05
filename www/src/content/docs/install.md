@@ -21,8 +21,8 @@ OIDC issuer alongside the gateway and writes a ready-to-use bearer token to
 `/tmp/zerker-dev-token`:
 
 ```bash
-git clone https://github.com/zerkerlabs/farcaster.git
-cd farcaster
+git clone https://github.com/zerkerlabs/gateway.git
+cd gateway
 make dev-auth
 ```
 

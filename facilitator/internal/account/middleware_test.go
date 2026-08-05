@@ -11,8 +11,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/account"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/mtls/mtlstest"
+	"github.com/zerkerlabs/gateway/facilitator/internal/account"
+	"github.com/zerkerlabs/gateway/facilitator/internal/mtls/mtlstest"
 )
 
 func TestMiddleware(t *testing.T) {

@@ -3,7 +3,7 @@ package policy_test
 import (
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 func strp(s string) *string { return &s }

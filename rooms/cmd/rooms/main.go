@@ -25,13 +25,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
-	"github.com/zerkerlabs/farcaster/rooms/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
-	"github.com/zerkerlabs/farcaster/rooms/internal/version"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/httpapi"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/version"
 )
 
 func main() {

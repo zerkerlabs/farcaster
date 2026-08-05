@@ -4,8 +4,8 @@ BINARY ?= rooms
 CMD ?= ./cmd/rooms
 VERSION ?= dev
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-LDFLAGS := -X github.com/zerkerlabs/farcaster/rooms/internal/version.Version=$(VERSION) \
-           -X github.com/zerkerlabs/farcaster/rooms/internal/version.Commit=$(COMMIT)
+LDFLAGS := -X github.com/zerkerlabs/gateway/rooms/internal/version.Version=$(VERSION) \
+           -X github.com/zerkerlabs/gateway/rooms/internal/version.Commit=$(COMMIT)
 
 .DEFAULT_GOAL := check
 

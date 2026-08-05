@@ -9,8 +9,8 @@ BINARY     ?= zerker-gateway
 CMD        ?= ./cmd/zerker-gateway
 VERSION    ?= dev
 COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-LDFLAGS    := -X github.com/zerkerlabs/farcaster/gateway/internal/version.Version=$(VERSION) \
-              -X github.com/zerkerlabs/farcaster/gateway/internal/version.Commit=$(COMMIT)
+LDFLAGS    := -X github.com/zerkerlabs/gateway/gateway/internal/version.Version=$(VERSION) \
+              -X github.com/zerkerlabs/gateway/gateway/internal/version.Commit=$(COMMIT)
 
 .DEFAULT_GOAL := check
 

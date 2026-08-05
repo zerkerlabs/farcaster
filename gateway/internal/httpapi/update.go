@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 // updateRequest carries only the client-settable fields for a PATCH operation.

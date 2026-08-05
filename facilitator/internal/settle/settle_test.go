@@ -19,14 +19,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/account"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/chain"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/mtls/mtlstest"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settle"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/verify"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/facilitator/internal/account"
+	"github.com/zerkerlabs/gateway/facilitator/internal/chain"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/mtls/mtlstest"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settle"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/internal/verify"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 const (

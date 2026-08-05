@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
 )
 
 // RunContract runs the full contract suite against implementations returned

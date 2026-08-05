@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // fakeSettleOutcome is one scripted result for fakeSettler.Settle.

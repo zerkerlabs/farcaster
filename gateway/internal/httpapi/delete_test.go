@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
 )
 
 // deleteRequest builds a DELETE request to /v1/agents/{id} with auth context set.

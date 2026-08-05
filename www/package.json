@@ -1,5 +1,5 @@
 {
-  "name": "@zerkerlabs/farcaster-www",
+  "name": "@zerkerlabs/gateway-www",
   "version": "0.0.0",
   "private": true,
   "description": "Zerker product website \u2014 marketing landing + embedded developer docs, one Astro + Starlight app.",

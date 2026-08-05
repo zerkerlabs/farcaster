@@ -1,4 +1,4 @@
-module github.com/zerkerlabs/farcaster/rooms
+module github.com/zerkerlabs/gateway/rooms
 
 go 1.26.4
 

@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
 )
 
 // mcpTestHandler wires a proxy handler around the given forwarder plus a fresh

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/ratelimit"
+	"github.com/zerkerlabs/gateway/gateway/internal/ratelimit"
 )
 
 func TestAgentLimiter_AllowsFirstRequest(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory"
 )
 
 // RunContract runs the full contract suite against implementations returned

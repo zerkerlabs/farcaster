@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/resource"
+	"github.com/zerkerlabs/gateway/rooms/internal/resource"
 )
 
 // Store is a thread-safe, tenant-scoped, in-memory Room store. It holds rooms

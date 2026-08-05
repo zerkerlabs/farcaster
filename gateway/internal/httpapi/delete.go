@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {

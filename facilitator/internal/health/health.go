@@ -15,7 +15,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/chain"
+	"github.com/zerkerlabs/gateway/facilitator/internal/chain"
 )
 
 // Kind is one settle-able (scheme, network, asset) combination this

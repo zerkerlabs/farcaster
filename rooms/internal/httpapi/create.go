@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // createRoomRequest is the request body for POST /v1/rooms.

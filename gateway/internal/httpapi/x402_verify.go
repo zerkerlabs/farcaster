@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // The x402 wire types (Payment, PaymentPayload, Authorization,

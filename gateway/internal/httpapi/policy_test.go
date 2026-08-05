@@ -9,10 +9,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 // newPolicyHandler returns a Handler wired with a fresh in-memory policy store.

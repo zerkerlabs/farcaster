@@ -19,19 +19,19 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/db"
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ratelimit"
-	"github.com/zerkerlabs/farcaster/gateway/internal/server"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/gateway/internal/version"
+	"github.com/zerkerlabs/gateway/gateway/db"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/ratelimit"
+	"github.com/zerkerlabs/gateway/gateway/internal/server"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/version"
 )
 
 func main() {

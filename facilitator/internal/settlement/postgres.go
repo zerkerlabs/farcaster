@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
 )
 
 // selectCols is the canonical column list for settlement reads, in scan order.

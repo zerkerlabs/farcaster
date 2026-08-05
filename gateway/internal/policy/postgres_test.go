@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/db"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/db"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 // openTestPool opens a connection pool from TEST_DATABASE_URL, runs

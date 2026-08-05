@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
 )
 
 const (

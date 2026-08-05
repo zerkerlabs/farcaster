@@ -26,8 +26,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settle"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settle"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
 )
 
 // DefaultInterval is Config.Interval's default: comfortably below

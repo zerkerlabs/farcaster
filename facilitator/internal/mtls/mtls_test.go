@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/mtls"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/mtls/mtlstest"
+	"github.com/zerkerlabs/gateway/facilitator/internal/mtls"
+	"github.com/zerkerlabs/gateway/facilitator/internal/mtls/mtlstest"
 )
 
 // startTestServer starts an HTTPS listener enforcing mTLS via

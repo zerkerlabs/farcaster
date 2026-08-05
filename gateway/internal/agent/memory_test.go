@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
 )
 
 const (

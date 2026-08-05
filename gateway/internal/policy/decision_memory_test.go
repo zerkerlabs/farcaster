@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 func recorded(tenant, agent, tool string, action policy.Action, matchedRule, reason string) policy.RecordedDecision {

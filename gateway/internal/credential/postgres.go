@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/resource"
+	"github.com/zerkerlabs/gateway/gateway/internal/resource"
 )
 
 const (

@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ratelimit"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/ratelimit"
 )
 
 // policyEnforcementHandler wires a proxy handler with fresh agent/invocation

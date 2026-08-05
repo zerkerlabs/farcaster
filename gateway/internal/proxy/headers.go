@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
 )
 
 // blockedHeaders is the set of caller headers that must never be forwarded to

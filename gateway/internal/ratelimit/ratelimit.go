@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 // Default rate limit values applied when Config fields are zero or negative.

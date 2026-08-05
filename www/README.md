@@ -6,7 +6,7 @@ The developer documentation site, [Astro](https://astro.build) +
 outside the Go workspace (`go.work`).
 
 The product-facing marketing site is a separate repo,
-[`zerkerlabs/farcastergateway`](https://github.com/zerkerlabs/farcastergateway),
+[`zerkerlabs/zerker.ai`](https://github.com/zerkerlabs/zerker.ai),
 serving zerker.ai. This project is docs only.
 
 ## Layout

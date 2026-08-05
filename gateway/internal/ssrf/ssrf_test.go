@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
 )
 
 func TestIsBlockedIP(t *testing.T) {

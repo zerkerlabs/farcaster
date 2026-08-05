@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/cryptoutil"
+	"github.com/zerkerlabs/gateway/gateway/internal/cryptoutil"
 )
 
 // dekSize is 32 bytes, giving AES-256.

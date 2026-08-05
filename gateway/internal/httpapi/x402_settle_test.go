@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // stubFacilitatorCred is a minimal FacilitatorCredentialResolver for tests,

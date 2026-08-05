@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // countingGateway wraps an httptest server standing in for the Zerker

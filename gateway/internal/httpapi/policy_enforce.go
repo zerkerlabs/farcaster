@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 // maxClassifierReasonLen bounds how much of an external classifier's

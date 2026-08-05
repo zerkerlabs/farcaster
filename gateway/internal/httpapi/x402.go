@@ -1,8 +1,8 @@
 package httpapi
 
 import (
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // x402Scheme pins the wire conformance target: the coinbase x402 "typical

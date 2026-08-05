@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/resource"
+	"github.com/zerkerlabs/gateway/gateway/internal/resource"
 )
 
 // decisionCols is the canonical column list for policy_decisions reads, shared
