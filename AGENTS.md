@@ -1,6 +1,6 @@
 # ZERKER GATEWAY — CONTRIBUTOR & AGENT GUIDE
 
-> Read this first. It is the single source of truth for how Zerker is built —
+> Read this first. It is the single source of truth for how Zerker Gateway is built —
 > architecture, security invariants, and conventions. It applies equally to human
 > contributors and coding agents.
 
@@ -8,7 +8,7 @@
 
 ## 1. WHAT ZERKER GATEWAY IS
 
-Zerker is an open gateway to **manage, analyze, and productize agents and
+Zerker Gateway is an open gateway to **manage, analyze, and productize agents and
 agentic workflows**. It is the control plane that sits in front of agent traffic:
 routing, policy, observability, payment metering, and the surfaces that turn raw
 agent activity into a product. It is a single Go binary you can self-host — own
@@ -18,10 +18,10 @@ It composes with the rest of the Zerker stack as **external systems, integrated
 over their public interfaces — never vendored as code**:
 
 - **[Treeship](https://github.com/zerkerlabs/treeship)** — portable,
-  cryptographically-signed trust receipts for agent workflows. Zerker is a
+  cryptographically-signed trust receipts for agent workflows. The gateway is a
   natural emitter.
 - **[Zmem](https://github.com/zerkerlabs/zmem)** — verifiable memory for AI
-  agents. Zerker is a natural consumer.
+  agents. The gateway is a natural consumer.
 
 _The naming_: Zerker Gateway, after Zerker Labs. (Formerly "Farcaster" — a Hyperion farcaster is an instantaneous gateway between worlds — renamed to avoid colliding with the Farcaster social protocol.)
 
@@ -86,7 +86,7 @@ reject a PR regardless of other quality signals.
 5. **TLS-only externally.** All external-facing listeners use TLS in production.
    Plaintext HTTP is acceptable only for loopback health probes.
 
-6. **Verify Treeship receipts; never forge.** Zerker emits and consumes
+6. **Verify Treeship receipts; never forge.** The gateway emits and consumes
    Treeship trust receipts. It must verify cryptographic signatures on receipts
    it consumes, and never accept an unsigned or self-signed receipt as
    authoritative. Signing keys are secrets, not compiled-in constants.

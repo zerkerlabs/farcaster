@@ -3,7 +3,7 @@ title: Postgres
 description: Configuring the gateway's PostgreSQL store — connection, automatic migrations, and the in-memory dev fallback.
 ---
 
-Zerker persists all durable state — registered agents, encrypted
+Zerker Gateway persists all durable state — registered agents, encrypted
 credentials, invocation records, and settlement configuration — in
 **PostgreSQL**. Point the gateway at a database with `ZERKER_DATABASE_URL`
 (a standard pgx/libpq DSN); `DATABASE_URL` is honored as a fallback for

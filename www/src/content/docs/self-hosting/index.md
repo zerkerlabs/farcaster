@@ -1,10 +1,10 @@
 ---
 title: Self-hosting & operations
-description: Deploying, configuring, and upgrading a self-hosted Zerker gateway.
+description: Deploying, configuring, and upgrading a self-hosted Zerker Gateway.
 ---
 
 For getting a first instance running, see [Install](/install/) and the
-[Quickstart](/quickstart/). This section covers running Zerker in
+[Quickstart](/quickstart/). This section covers running Zerker Gateway in
 production:
 
 - **[Deployment](/self-hosting/deployment/)** — the single-binary model,

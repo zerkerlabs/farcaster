@@ -1,9 +1,9 @@
 ---
 title: Architecture
-description: Gateway, facilitator, the shared x402 wire contract, and the SDKs — how Zerker's pieces fit together.
+description: Gateway, facilitator, the shared x402 wire contract, and the SDKs — how Zerker Gateway's pieces fit together.
 ---
 
-Zerker is a **Go workspace monorepo**: several independently-deployable
+Zerker Gateway is a **Go workspace monorepo**: several independently-deployable
 modules that share one wire contract and one build harness, rather than a
 single monolith or a scattered polyrepo.
 
@@ -18,7 +18,7 @@ single monolith or a scattered polyrepo.
   a transaction hash. It is a **separate deployable** from the gateway on
   purpose — it is the only component that needs a gas key and a chain client
   (go-ethereum), so those heavy, security-sensitive dependencies never enter
-  the gateway's module graph. You can self-host a facilitator (OSS), or use
+  The gateway's module graph. You can self-host a facilitator (OSS), or use
   the managed one.
 - **`x402types`** — the shared x402 wire contract, generated from an OpenAPI
   schema. The gateway, the facilitator, the SDKs, and this documentation site

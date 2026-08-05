@@ -1,4 +1,4 @@
-# Zerker website (`www/`)
+# Zerker Gateway website (`www/`)
 
 The developer documentation site, [Astro](https://astro.build) +
 [Starlight](https://starlight.astro.build), deployed to
@@ -12,7 +12,7 @@ serving zerker.ai. This project is docs only.
 ## Layout
 
 - `src/content/docs/` — the docs tree. Starlight owns the site root, so a page
-  at `src/content/docs/<path>` serves at `/<path>/`: "What is Zerker" is `/`
+  at `src/content/docs/<path>` serves at `/<path>/`: "What is Zerker Gateway" is `/`
   and Quickstart is `/quickstart/`. Some sections are still shell stubs.
 - `vercel.json` — forwards the old `/docs/...` URLs to their new root-level
   homes, so links published before the move keep resolving. The redirect uses

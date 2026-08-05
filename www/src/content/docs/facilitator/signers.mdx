@@ -33,7 +33,7 @@ An HSM-backed secp256k1 signing key (`ECC_SECG_P256K1`) that never leaves
 AWS KMS. The facilitator sends KMS a pre-computed digest and gets back a
 signature; the private key material is never in process memory, never
 logged, and never returned by any API call. This is the target backend for
-Zerker's managed facilitator — the `Signer` implementation exists
+Zerker Gateway's managed facilitator — the `Signer` implementation exists
 (`internal/chain/awskms`), but it isn't wired into the facilitator binary's
 startup path yet, so the managed deployment currently runs the same local
 keystore signer as a self-hosted one. Once wired, the AWS credentials, the

@@ -1,4 +1,4 @@
-# CI — the merge gate for the public Zerker repo.
+# CI — the merge gate for the public Zerker Gateway repo.
 #
 # Runs each Go module's own `make check` (tidy-check, fmt-check, vet, lint,
 # race-tested tests) as an independent job. This mirrors exactly what
