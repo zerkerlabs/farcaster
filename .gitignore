@@ -25,3 +25,4 @@ coverage.html
 .DS_Store
 .idea/
 *.swp
+/gateway/scripts/mock-oidc/mock-oidc
