@@ -16,7 +16,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
 )
 
 // ErrNotFound is returned by Store.Lookup when no account matches the given

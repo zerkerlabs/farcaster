@@ -14,10 +14,10 @@ import (
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // signedX402Header builds a base64 X-PAYMENT whose EIP-3009 authorization is
@@ -84,8 +84,8 @@ func TestHandleTransact_X402_ForwardsRealSignedPayment(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (real signature verified + forwarded); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 	if _, total, err := invStore.List(context.Background(), verifyTestTenant, agentID, 1, 50); err != nil || total != 1 {
 		t.Errorf("invocations created = %d, want 1 (err=%v)", total, err)
@@ -110,7 +110,7 @@ func TestHandleStream_X402_ForwardsRealSignedPayment(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (real signature verified + forwarded); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 }

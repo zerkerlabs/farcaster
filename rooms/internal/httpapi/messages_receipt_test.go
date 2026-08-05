@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
 )
 
 // recordingEmitter is a receipt.Emitter test double that records every

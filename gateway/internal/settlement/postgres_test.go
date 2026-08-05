@@ -13,10 +13,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/db"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/db"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 // credSeq gives each seeded credential a unique name; the credential store
@@ -27,7 +27,7 @@ var credSeq atomic.Int64
 // testKMSKey is a fixed 32-byte (64 hex char) master key. Pinning it makes
 // kms.LocalProvider deterministic so every provider seedCredential constructs
 // within a test shares one master key and can unwrap the tenant KEK a prior
-// seed persisted. Without it, CI (which sets no FARCASTER_KMS_KEY) hands each
+// seed persisted. Without it, CI (which sets no ZERKER_KMS_KEY) hands each
 // provider a random ephemeral key and the second seed for a tenant fails to
 // unwrap the existing KEK ("message authentication failed").
 const testKMSKey = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
@@ -37,7 +37,7 @@ const testKMSKey = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2
 // t.Cleanup.
 func openTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	t.Setenv("FARCASTER_KMS_KEY", testKMSKey)
+	t.Setenv("ZERKER_KMS_KEY", testKMSKey)
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("TEST_DATABASE_URL not set; skipping integration tests")

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
 )
 
 // defaultClassifierTimeout bounds a single classifier webhook round-trip so a

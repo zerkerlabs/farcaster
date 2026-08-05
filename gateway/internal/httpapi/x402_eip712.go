@@ -9,7 +9,7 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // EIP-712 domain for native USDC on Base (spec 0005 Decision 3). The

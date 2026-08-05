@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
 )
 
 // verifyGetRequest returns an authenticated GET request under verifyTestTenant
@@ -44,7 +44,7 @@ func TestHandleTransact_X402_CapturesPaymentMetadata(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	want := samplePayment()
 	inv, err := invStore.Get(context.Background(), verifyTestTenant, invID)
@@ -115,7 +115,7 @@ func TestHandleStream_X402_CapturesPaymentMetadata(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 
 	want := samplePayment()
 	inv, err := invStore.Get(context.Background(), verifyTestTenant, invID)

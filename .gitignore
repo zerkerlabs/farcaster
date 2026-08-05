@@ -5,7 +5,7 @@ bin/
 *.out
 # Compiled module binaries (e.g. from `go build .` in a module root)
 /facilitator/facilitator
-/gateway/farcaster
+/gateway/zerker-gateway
 
 # Go
 /vendor/
@@ -25,3 +25,4 @@ coverage.html
 .DS_Store
 .idea/
 *.swp
+/gateway/scripts/mock-oidc/mock-oidc

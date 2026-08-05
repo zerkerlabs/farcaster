@@ -1,9 +1,9 @@
 ---
 title: Deployment
-description: Deployment topologies for the single-binary Farcaster gateway — containers, health probes, scaling, and graceful shutdown.
+description: Deployment topologies for the single-binary Zerker gateway — containers, health probes, scaling, and graceful shutdown.
 ---
 
-Farcaster ships as a **single, statically-linked Go binary**. There is no
+Zerker ships as a **single, statically-linked Go binary**. There is no
 sidecar, no runtime, and no required external service beyond the process
 itself — [Postgres](/self-hosting/postgres/) is optional but recommended
 for any durable deployment. The binary reads its entire configuration from the
@@ -16,14 +16,14 @@ there is no unauthenticated path to bring it up (see
 [Auth & multi-tenancy](/concepts/auth-and-multi-tenancy/)).
 
 ```bash
-FARCASTER_OIDC_ISSUER=https://issuer.example.com \
-FARCASTER_OIDC_AUDIENCE=farcaster-gateway \
-FARCASTER_DATABASE_URL=postgres://user:pass@db:5432/farcaster \
-FARCASTER_KMS_KEY=$(openssl rand -hex 32) \
-  farcaster
+ZERKER_OIDC_ISSUER=https://issuer.example.com \
+ZERKER_OIDC_AUDIENCE=zerker-gateway \
+ZERKER_DATABASE_URL=postgres://user:pass@db:5432/zerker \
+ZERKER_KMS_KEY=$(openssl rand -hex 32) \
+  zerker-gateway
 ```
 
-By default it listens on `:8080` (override with `FARCASTER_ADDR`).
+By default it listens on `:8080` (override with `ZERKER_ADDR`).
 
 ## Containers
 
@@ -32,9 +32,9 @@ nothing to install alongside it:
 
 ```dockerfile
 FROM gcr.io/distroless/static-debian12
-COPY farcaster /usr/local/bin/farcaster
+COPY zerker-gateway /usr/local/bin/zerker-gateway
 EXPOSE 8080
-ENTRYPOINT ["farcaster"]
+ENTRYPOINT ["zerker-gateway"]
 ```
 
 Inject configuration as environment variables from your platform's secret

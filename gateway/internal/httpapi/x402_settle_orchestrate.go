@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // settleMaxRetries bounds the number of additional settle attempts after the

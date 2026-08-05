@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 const (

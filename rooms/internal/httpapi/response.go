@@ -3,8 +3,8 @@ package httpapi
 import (
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // roomResponse is the JSON representation of a Room, including its transcript

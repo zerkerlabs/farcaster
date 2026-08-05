@@ -8,7 +8,7 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // Malformed-input rejections from calldata encoding. By the time /settle calls

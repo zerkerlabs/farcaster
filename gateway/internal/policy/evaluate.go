@@ -53,7 +53,7 @@ type Decision struct {
 	Action Action
 	// MatchedRule identifies the rule that produced Action, as its 1-based
 	// position in Policy.Rules (e.g. "3") — stable, deterministic, and safe to
-	// surface to the caller (e.g. X-Farcaster-Policy-Warning) without leaking
+	// surface to the caller (e.g. X-Zerker-Policy-Warning) without leaking
 	// match conditions. Empty when Action came from Policy.Default because no
 	// rule matched.
 	MatchedRule string

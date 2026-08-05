@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
 )
 
 // CredentialService is the interface the credential HTTP handlers require.

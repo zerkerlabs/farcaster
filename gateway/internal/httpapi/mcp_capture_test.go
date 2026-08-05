@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
 )
 
 // mcpTestHandler wires a proxy handler around the given forwarder plus a fresh
@@ -59,7 +59,7 @@ func TestHandleTransact_MCPToolsCallCaptured(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202; body = %s", rec.Code, rec.Body.String())
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	got := pollInvocation(t, mux, agentID, invID)
@@ -87,7 +87,7 @@ func TestHandleTransact_MCPToolsListNullTool(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	got := pollInvocation(t, mux, agentID, invID)
@@ -117,7 +117,7 @@ func TestHandleTransact_HTTPAgentLeavesMCPFieldsNull(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("POST status = %d, want 202", rec.Code)
 	}
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv := waitForStatus(t, invStore, invID, invocation.StatusSucceeded)
 
 	if inv.MCPMethod != nil {
@@ -167,7 +167,7 @@ func TestHandleStream_MCPCaptureAndForwardIntact(t *testing.T) {
 		t.Errorf("forwarded body = %q, want verbatim %q", fwd.gotBody, body)
 	}
 
-	invID := rec.Header().Get("X-Farcaster-Invocation-ID")
+	invID := rec.Header().Get("X-Zerker-Invocation-ID")
 	inv, err := invStore.Get(context.Background(), testTenant, invID)
 	if err != nil {
 		t.Fatalf("get invocation: %v", err)

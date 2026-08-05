@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
 )
 
 const (

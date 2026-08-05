@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // Submission outcomes the /settle orchestration (T5) maps onto the wire. These

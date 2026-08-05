@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/facilitator/internal/guardrail"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/internal/guardrail"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
 )
 
 func sampleKey(accountID, nonce string) settlement.ClaimKey {

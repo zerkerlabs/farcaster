@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/resource"
+	"github.com/zerkerlabs/gateway/rooms/internal/resource"
 )
 
 func TestNew_Prefix(t *testing.T) {

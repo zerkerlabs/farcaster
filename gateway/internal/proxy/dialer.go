@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
 )
 
 // safeDialContext is a net.Dialer.DialContext-compatible function that prevents

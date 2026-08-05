@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ratelimit"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/ratelimit"
 )
 
 // ctxFor returns a context with the given tenant and user set via the authtest

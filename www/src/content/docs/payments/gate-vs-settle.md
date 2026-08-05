@@ -3,7 +3,7 @@ title: Gate vs settle
 description: Two distinct steps behind one x402 flow — verifying a payment authorization, and actually collecting it.
 ---
 
-x402 on Farcaster is two steps, shipped as two surfaces, with an open-core
+x402 on Zerker is two steps, shipped as two surfaces, with an open-core
 line drawn exactly between them. Every priced route goes through the
 **gate**; only a route on a tenant with a facilitator configured also goes
 through **settlement**.
@@ -88,7 +88,7 @@ facilitator, or it goes through the full verify → settle → forward sequence.
 ## Why the line sits here
 
 Verification requires no outbound call and no key, so it stays in the free,
-self-hostable core — it's the wedge that makes Farcaster's monetization story
+self-hostable core — it's the wedge that makes Zerker's monetization story
 credible without asking anyone to trust Zerker with anything. Collection
 requires a party willing to hold a gas key and submit transactions, which is
 a materially different trust and operational commitment — that's the

@@ -1,5 +1,5 @@
 // Package ratelimit provides per-caller HTTP rate-limiting middleware for
-// the Farcaster gateway (security invariant #8, AGENTS.md §3).
+// the Zerker gateway (security invariant #8, AGENTS.md §3).
 package ratelimit
 
 import (
@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 // Default rate limit values applied when Config fields are zero or negative.

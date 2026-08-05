@@ -1,4 +1,4 @@
-module github.com/zerkerlabs/farcaster/gateway
+module github.com/zerkerlabs/gateway/gateway
 
 go 1.26.4
 
@@ -8,7 +8,7 @@ require (
 	github.com/getkin/kin-openapi v0.141.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/zerkerlabs/farcaster/x402types v0.0.0
+	github.com/zerkerlabs/gateway/x402types v0.0.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/time v0.15.0
 )
@@ -16,7 +16,7 @@ require (
 // x402types is an in-repo workspace module (ADR-0010), not published. The
 // replace lets `go mod tidy` and per-module CI resolve it by path; go.work
 // covers multi-module local builds.
-replace github.com/zerkerlabs/farcaster/x402types => ../x402types
+replace github.com/zerkerlabs/gateway/x402types => ../x402types
 
 require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect

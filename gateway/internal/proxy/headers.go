@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
 )
 
 // blockedHeaders is the set of caller headers that must never be forwarded to
-// the upstream. The Authorization header is blocked because Farcaster replaces
+// the upstream. The Authorization header is blocked because Zerker replaces
 // it with the configured upstream credential (invariant #4, AGENTS.md; spec
 // 0002 §Q5). The remaining entries are standard hop-by-hop headers that have
 // no meaning beyond a single HTTP hop (RFC 7230 §6.1).
@@ -28,22 +28,43 @@ var blockedHeaders = map[string]struct{}{
 	"Content-Length": {},
 }
 
+// spoofablePrefixes are header prefixes the gateway itself injects, so a
+// caller-supplied header carrying one must never reach the upstream.
+//
+// X-Farcaster-* is the pre-rename prefix. It stays here because dropping it
+// would REMOVE a protection: an upstream still keyed to the old contract would
+// go from "value injected by the gateway, spoofing blocked" to "gateway no
+// longer injects it, and the caller's value passes straight through." Safe to
+// delete once no upstream reads X-Farcaster-* headers.
+var spoofablePrefixes = []string{"X-Zerker-", "X-Farcaster-"}
+
 // copyHeaders copies headers from src to dst, skipping any that appear in
-// blockedHeaders and any X-Farcaster-* headers (to prevent callers from
-// spoofing gateway metadata).
+// blockedHeaders and any header carrying a spoofablePrefixes prefix (to
+// prevent callers from spoofing gateway metadata).
 func copyHeaders(src, dst http.Header) {
 	for k, vs := range src {
 		canon := http.CanonicalHeaderKey(k)
 		if _, blocked := blockedHeaders[canon]; blocked {
 			continue
 		}
-		if strings.HasPrefix(canon, "X-Farcaster-") {
+		if hasSpoofablePrefix(canon) {
 			continue
 		}
 		for _, v := range vs {
 			dst.Add(canon, v)
 		}
 	}
+}
+
+// hasSpoofablePrefix reports whether canon (a canonicalized header key) starts
+// with any prefix the gateway injects itself.
+func hasSpoofablePrefix(canon string) bool {
+	for _, p := range spoofablePrefixes {
+		if strings.HasPrefix(canon, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // injectCredential sets the upstream authentication header based on the

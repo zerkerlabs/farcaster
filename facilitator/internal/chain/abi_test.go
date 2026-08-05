@@ -10,7 +10,7 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 func sampleAuthorization() x402types.Authorization {

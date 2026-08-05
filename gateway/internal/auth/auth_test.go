@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 // testOIDCServer is a minimal in-process OIDC provider: it exposes an

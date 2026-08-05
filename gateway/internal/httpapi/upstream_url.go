@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/ssrf"
+	"github.com/zerkerlabs/gateway/gateway/internal/ssrf"
 )
 
 // validateUpstreamURL applies input-time hygiene to a caller-supplied upstream

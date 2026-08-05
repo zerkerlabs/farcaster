@@ -1,4 +1,4 @@
-// Package db provides database lifecycle helpers for Farcaster. The only
+// Package db provides database lifecycle helpers for Zerker. The only
 // exported entry point for regular use is Migrate, which applies any pending
 // numbered SQL migrations to the target database.
 package db
@@ -35,12 +35,21 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 	// Serialize concurrent migrators across instances: a second instance blocks
 	// here until the first finishes, instead of racing on schema_migrations.
-	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext('farcaster_migrate'))`); err != nil {
-		return fmt.Errorf("acquire migrate lock: %w", err)
+	//
+	// Two keys are held, always in this order. 'farcaster_migrate' is the
+	// pre-rename key: a pre-rename instance still holds it, and it cannot know
+	// about 'zerker_migrate'. Taking only the new key would let an old and a new
+	// instance migrate concurrently during a rolling upgrade — exactly the race
+	// this lock exists to prevent. Safe to drop the legacy key once no
+	// pre-rename instance can still be running.
+	for _, key := range []string{"farcaster_migrate", "zerker_migrate"} {
+		if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, key); err != nil {
+			return fmt.Errorf("acquire migrate lock %q: %w", key, err)
+		}
+		defer func() {
+			_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext($1))`, key)
+		}()
 	}
-	defer func() {
-		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext('farcaster_migrate'))`)
-	}()
 
 	if _, err := conn.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (

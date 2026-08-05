@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
 )
 
 // Service orchestrates credential creation, decryption, and KEK rotation. It

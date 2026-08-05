@@ -1,4 +1,4 @@
-# golangci-lint v2 configuration for Farcaster.
+# golangci-lint v2 configuration for Zerker.
 # Docs: https://golangci-lint.run/usage/configuration/
 version: "2"
 

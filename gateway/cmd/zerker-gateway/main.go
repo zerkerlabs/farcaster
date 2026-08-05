@@ -1,6 +1,6 @@
-// Command farcaster is the entrypoint for the Farcaster gateway.
+// Command zerker-gateway is the entrypoint for the Zerker gateway.
 //
-// Farcaster is Zerker's gateway to manage, analyze, and productize agents and
+// Zerker is Zerker's gateway to manage, analyze, and productize agents and
 // agentic workflows. This binary serves operational endpoints and the Agent
 // Catalog surface (spec 0001); further product surfaces land as they are
 // specced under docs/specs.
@@ -19,25 +19,25 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/gateway/db"
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/httpapi"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/kms"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/ratelimit"
-	"github.com/zerkerlabs/farcaster/gateway/internal/server"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
-	"github.com/zerkerlabs/farcaster/gateway/internal/version"
+	"github.com/zerkerlabs/gateway/gateway/db"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/httpapi"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/kms"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/ratelimit"
+	"github.com/zerkerlabs/gateway/gateway/internal/server"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/version"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	addr := os.Getenv("FARCASTER_ADDR")
+	addr := os.Getenv("ZERKER_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
@@ -49,7 +49,7 @@ func main() {
 }
 
 func run(logger *slog.Logger, addr string) error {
-	// Store selection: use Postgres when FARCASTER_DATABASE_URL or DATABASE_URL is
+	// Store selection: use Postgres when ZERKER_DATABASE_URL or DATABASE_URL is
 	// set; fall back to the in-memory store for local dev only (non-durable).
 	store, credSvc, invStore, settlementStore, policyStore, decisionStore, closeStore, err := openStore(logger)
 	if err != nil {
@@ -58,7 +58,7 @@ func run(logger *slog.Logger, addr string) error {
 	defer closeStore()
 
 	// Auth middleware is required — the server does not start without OIDC config.
-	// Set FARCASTER_OIDC_ISSUER and FARCASTER_OIDC_AUDIENCE to configure.
+	// Set ZERKER_OIDC_ISSUER and ZERKER_OIDC_AUDIENCE to configure.
 	authCfg := auth.ConfigFromEnv()
 	mw, err := auth.NewMiddleware(context.Background(), authCfg, logger)
 	if err != nil {
@@ -118,7 +118,7 @@ func run(logger *slog.Logger, addr string) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("farcaster gateway listening",
+		logger.Info("zerker gateway listening",
 			"addr", addr, "version", version.Version, "commit", version.Commit)
 		errCh <- srv.ListenAndServe()
 	}()
@@ -151,7 +151,7 @@ func run(logger *slog.Logger, addr string) error {
 // config store, policy store, policy decision store, and a cleanup function.
 // The caller must call the cleanup function when done.
 func openStore(logger *slog.Logger) (agent.AgentStore, *credential.Service, invocation.Store, settlement.Store, policy.PolicyStore, policy.DecisionStore, func(), error) {
-	dbURL := os.Getenv("FARCASTER_DATABASE_URL")
+	dbURL := os.Getenv("ZERKER_DATABASE_URL")
 	if dbURL == "" {
 		dbURL = os.Getenv("DATABASE_URL")
 	}

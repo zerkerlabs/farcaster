@@ -14,10 +14,10 @@ import (
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // tamperedX402Header signs a well-formed authorization, then mutates its value
@@ -114,7 +114,7 @@ func TestX402Gate_FullFlow(t *testing.T) {
 
 			// 3. Replaying the identical authorization -> rejected (best-effort
 			// nonce guard, spec 0005 T6): the chain never consumed this nonce (v1
-			// never settles), but Farcaster's local guard catches the re-presented
+			// never settles), but Zerker's local guard catches the re-presented
 			// payload.
 			rec = httptest.NewRecorder()
 			mux.ServeHTTP(rec, gatePostRequest(path, validHeader))

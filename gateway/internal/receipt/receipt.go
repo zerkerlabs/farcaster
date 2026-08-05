@@ -1,4 +1,4 @@
-// Package receipt models the trust receipts Farcaster emits to Treeship after a
+// Package receipt models the trust receipts Zerker emits to Treeship after a
 // proxied invocation completes. Treeship is an external system (ADR-0003), so
 // this package defines only the payload and the emitter interface; the concrete
 // Treeship HTTP emitter is wired separately and is a follow-up.

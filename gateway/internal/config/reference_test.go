@@ -11,11 +11,11 @@ import (
 )
 
 // envLiteral matches a quoted environment-variable name in Go source: either a
-// FARCASTER_-prefixed name or the DATABASE_URL fallback. Requiring the
+// ZERKER_-prefixed name or the DATABASE_URL fallback. Requiring the
 // surrounding quotes means names mentioned in comments or embedded in larger
 // strings (e.g. error messages) are ignored — only actual string literals
 // passed to os.Getenv / os.LookupEnv / envOrDefault are matched.
-var envLiteral = regexp.MustCompile(`"(FARCASTER_[A-Z0-9_]+|DATABASE_URL)"`)
+var envLiteral = regexp.MustCompile(`"(ZERKER_[A-Z0-9_]+|DATABASE_URL)"`)
 
 // skipDirs are subtrees of the gateway module that read env vars for tooling or
 // dev-only purposes outside the gateway binary's production config surface.
@@ -24,7 +24,7 @@ var skipDirs = map[string]bool{"scripts": true, "bin": true, "node_modules": tru
 // TestReferenceMatchesSource is the drift-guard behind "a new env var can't
 // ship undocumented": it scans the gateway module's non-test source for
 // environment-variable literals and asserts the set exactly equals the names
-// (plus aliases) declared in Reference. Adding an os.Getenv("FARCASTER_NEW")
+// (plus aliases) declared in Reference. Adding an os.Getenv("ZERKER_NEW")
 // without a Reference entry fails here; so does leaving a Reference entry for a
 // variable the code no longer reads. This test runs inside `make check`.
 func TestReferenceMatchesSource(t *testing.T) {

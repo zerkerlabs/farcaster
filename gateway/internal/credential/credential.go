@@ -19,12 +19,12 @@ type Source string
 
 const (
 	// SourceManaged means the secret is stored envelope-encrypted inside
-	// Farcaster's database. The encryption hierarchy is:
+	// Zerker's database. The encryption hierarchy is:
 	//   secret → AES-256-GCM(DEK) → AES-256-GCM(per-tenant KEK) → KMS(master key)
 	SourceManaged Source = "managed"
 
 	// SourceVault means the secret lives in an external secrets store and
-	// Farcaster holds only a reference path. The vault resolver is stubbed in
+	// Zerker holds only a reference path. The vault resolver is stubbed in
 	// v1 and always returns ErrVaultNotConfigured.
 	SourceVault Source = "vault"
 )

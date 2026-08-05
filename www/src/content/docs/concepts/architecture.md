@@ -1,9 +1,9 @@
 ---
 title: Architecture
-description: Gateway, facilitator, the shared x402 wire contract, and the SDKs — how Farcaster's pieces fit together.
+description: Gateway, facilitator, the shared x402 wire contract, and the SDKs — how Zerker's pieces fit together.
 ---
 
-Farcaster is a **Go workspace monorepo**: several independently-deployable
+Zerker is a **Go workspace monorepo**: several independently-deployable
 modules that share one wire contract and one build harness, rather than a
 single monolith or a scattered polyrepo.
 

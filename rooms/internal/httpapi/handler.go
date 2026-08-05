@@ -11,14 +11,14 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/gateway"
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/gateway"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // GatewayCaller is the subset of *gateway.Client the message handlers need:
-// delivering one proxied call to a member's agent through the Farcaster
+// delivering one proxied call to a member's agent through the Zerker
 // gateway and confirming it actually completed. *gateway.Client satisfies this
 // interface.
 //

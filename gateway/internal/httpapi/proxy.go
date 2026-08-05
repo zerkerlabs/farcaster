@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/receipt"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/receipt"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // ttftReader wraps an io.Reader and records the wall-clock time of the first
@@ -163,7 +163,7 @@ func toInvocationResponse(inv *invocation.Invocation) invocationResponse {
 // promote to config if a tenant needs larger payloads.
 const maxRequestBodyBytes = 32 << 20 // 32 MiB
 
-// maxModelNameBytes caps the X-Farcaster-Model header the gateway will store on
+// maxModelNameBytes caps the X-Zerker-Model header the gateway will store on
 // an invocation record. A model identifier is short (e.g. "claude-opus-4-8");
 // without a cap, a caller could send up to Go's ~1 MiB header limit and bloat
 // the invocations table. Reject oversize values at the boundary (AGENTS.md
@@ -229,9 +229,9 @@ func (h *Handler) handleTransact(w http.ResponseWriter, r *http.Request) {
 	// Capture caller-supplied model name before buffering the body so the
 	// invocation record carries it from the moment of creation (spec 0003).
 	// Bound it at the boundary so an oversize header can't bloat the record.
-	model := r.Header.Get("X-Farcaster-Model")
+	model := r.Header.Get("X-Zerker-Model")
 	if len(model) > maxModelNameBytes {
-		writeError(w, http.StatusBadRequest, "X-Farcaster-Model too long")
+		writeError(w, http.StatusBadRequest, "X-Zerker-Model too long")
 		return
 	}
 
@@ -357,7 +357,7 @@ func (h *Handler) handleTransact(w http.ResponseWriter, r *http.Request) {
 	h.invocWG.Add(1)
 	go h.runTransact(tenant, agentID, inv.ID, cloned, a.CaptureBody, a.EmitReceipts, verifiedPayment, paymentReq) //nolint:gosec // G118: intentional — goroutine outlives the HTTP request; shutdownCtx replaces request context so Shutdown can cancel it
 
-	w.Header().Set("X-Farcaster-Invocation-ID", inv.ID)
+	w.Header().Set("X-Zerker-Invocation-ID", inv.ID)
 	if policyWarning != "" {
 		w.Header().Set(policyWarningHeader, policyWarning)
 	}
@@ -513,7 +513,7 @@ func (h *Handler) emitReceipt(inv *invocation.Invocation) {
 }
 
 // handleStream handles POST /v1/proxy/{id}/stream. It creates a durable
-// invocation record, sets X-Farcaster-Invocation-ID immediately (even on
+// invocation record, sets X-Zerker-Invocation-ID immediately (even on
 // error), then opens a long-lived connection to the upstream and streams the
 // request and response verbatim. The handler blocks until the upstream closes
 // its response or the caller disconnects — no goroutine is spawned.
@@ -568,9 +568,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	// Capture caller-supplied model name before the upstream call so the
 	// invocation record carries it from the moment of creation (spec 0003).
 	// Bound it at the boundary so an oversize header can't bloat the record.
-	model := r.Header.Get("X-Farcaster-Model")
+	model := r.Header.Get("X-Zerker-Model")
 	if len(model) > maxModelNameBytes {
-		writeError(w, http.StatusBadRequest, "X-Farcaster-Model too long")
+		writeError(w, http.StatusBadRequest, "X-Zerker-Model too long")
 		return
 	}
 
@@ -687,9 +687,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the invocation ID and no-buffering headers before any upstream call.
-	// X-Farcaster-Invocation-ID must appear in the response regardless of the
+	// X-Zerker-Invocation-ID must appear in the response regardless of the
 	// outcome (spec 0002: "every invocation is addressable … regardless of mode").
-	w.Header().Set("X-Farcaster-Invocation-ID", inv.ID)
+	w.Header().Set("X-Zerker-Invocation-ID", inv.ID)
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	running := invocation.StatusRunning
@@ -792,7 +792,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(k, v)
 		}
 	}
-	w.Header().Set("X-Farcaster-Invocation-ID", inv.ID)
+	w.Header().Set("X-Zerker-Invocation-ID", inv.ID)
 	if paymentResponseHeader != "" {
 		w.Header().Set("X-PAYMENT-RESPONSE", paymentResponseHeader)
 	}

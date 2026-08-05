@@ -3,21 +3,21 @@ import { defineConfig } from 'astro/config';
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 
 // Starlight owns the whole site: docs live at src/content/docs/ and serve from
-// the root, so "What is Farcaster" is / and Quickstart is /quickstart/. The
-// marketing landing page moved to its own repo (zerkerlabs/farcastergateway),
+// the root, so "What is Zerker" is / and Quickstart is /quickstart/. The
+// marketing landing page moved to its own repo (zerkerlabs/zerker.ai),
 // which is why there is no src/pages/index.astro competing for "/".
 export default defineConfig({
   // Production URL — enables the sitemap (Starlight bundles @astrojs/sitemap,
   // which no-ops without `site`) and makes canonical/og/sitemap links absolute.
   // Update this if the site moves to a custom domain.
-  site: 'https://docs.farcastergateway.com',
+  site: 'https://docs.zerker.ai',
   integrations: [
     starlight({
-      title: 'Farcaster',
+      title: 'Zerker',
       description:
         'Sovereign, single-binary gateway for agentic traffic — docs and reference.',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/zerkerlabs/farcaster' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/zerkerlabs/gateway' },
       ],
       // The x402 wire-contract API reference is rendered from the canonical
       // x402types/openapi.yaml — the same schema the Go types and the TS SDK
@@ -57,7 +57,7 @@ export default defineConfig({
         {
           label: 'Start here',
           items: [
-            { label: 'What is Farcaster', link: '/' },
+            { label: 'What is Zerker', link: '/' },
             { label: 'Install', slug: 'install' },
             { label: 'Quickstart', slug: 'quickstart' },
             { label: 'OSS vs Commercial at a glance', slug: 'oss-vs-commercial' },

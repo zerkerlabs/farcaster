@@ -6,7 +6,7 @@ package authtest
 import (
 	"context"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
 )
 
 // WithIdentity returns a copy of ctx with tenant and user set exactly as the

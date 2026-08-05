@@ -1,6 +1,6 @@
 // Package gateway provides the client Rooms uses to call one member's agent
 // on behalf of another: every agent-to-agent call in Rooms is issued through
-// the Farcaster gateway's proxy endpoint (POST /v1/proxy/{agt_id}), never
+// the Zerker gateway's proxy endpoint (POST /v1/proxy/{agt_id}), never
 // directly. Routing the call this way means it inherits the gateway's policy
 // enforcement, x402 payment gate, and invocation capture for free — Rooms
 // does not reimplement any of that, and this package must not grow a direct

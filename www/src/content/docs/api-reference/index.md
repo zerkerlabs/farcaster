@@ -6,14 +6,14 @@ description: The x402 wire contract and the gateway's /v1 REST surface, rendered
 Two auto-generated references land here:
 
 - **[The x402 wire contract](/api-reference/x402/)** — rendered from
-  [`x402types/openapi.yaml`](https://github.com/zerkerlabs/farcaster/blob/main/x402types/openapi.yaml),
+  [`x402types/openapi.yaml`](https://github.com/zerkerlabs/gateway/blob/main/x402types/openapi.yaml),
   the same schema that generates the Go types and the SDKs. Every type is
   referenced from that file, never copied, so a field change there re-renders
   here with no manual edit. Zero hand-maintenance.
 - **[The gateway `/v1` REST surface](/api-reference/gateway/)** (agents,
   proxy, invocations, analytics, credentials, settlement config) — rendered
   from
-  [`gateway/openapi.yaml`](https://github.com/zerkerlabs/farcaster/blob/main/gateway/openapi.yaml),
+  [`gateway/openapi.yaml`](https://github.com/zerkerlabs/gateway/blob/main/gateway/openapi.yaml),
   the canonical contract hand-authored from the gateway's HTTP handlers.
   Adding or altering an endpoint there re-renders here with no manual edit.
 

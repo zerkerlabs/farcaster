@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
 )
 
 // maxAnalyticsRange caps the [since, until] window a single /v1/analytics query

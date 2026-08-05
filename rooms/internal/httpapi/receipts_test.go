@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/receipt"
-	"github.com/zerkerlabs/farcaster/rooms/internal/room"
+	"github.com/zerkerlabs/gateway/rooms/internal/receipt"
+	"github.com/zerkerlabs/gateway/rooms/internal/room"
 )
 
 // mustEmit emits one receipt directly through em for roomID under tenantID,

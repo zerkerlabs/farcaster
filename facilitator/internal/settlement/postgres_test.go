@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zerkerlabs/farcaster/facilitator/db"
-	"github.com/zerkerlabs/farcaster/facilitator/internal/settlement"
+	"github.com/zerkerlabs/gateway/facilitator/db"
+	"github.com/zerkerlabs/gateway/facilitator/internal/settlement"
 )
 
 // openPGStore opens a pool from TEST_DATABASE_URL, migrates the facilitator

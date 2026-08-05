@@ -8,7 +8,7 @@ import (
 
 // nonceTTL bounds how long a seen (payer, nonce) pair is remembered by the
 // best-effort replay guard (spec 0005: "bounded TTL is fine for v1"). It only
-// needs to outlive the longest authorization window Farcaster advertises
+// needs to outlive the longest authorization window Zerker advertises
 // (x402MaxTimeoutSeconds); the margin here covers clock skew between the
 // caller's signed validBefore and the gateway's clock.
 const nonceTTL = 10 * time.Minute

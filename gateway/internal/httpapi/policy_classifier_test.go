@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
 )
 
 func TestHTTPClassifierClient_Classify_Success(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/credential"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/credential"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
 )
 
 const (
@@ -305,8 +305,8 @@ func TestXRequestIDHonored(t *testing.T) {
 	}
 }
 
-// TestXRequestIDInjected verifies that Farcaster injects an X-Request-ID when
-// the caller does not supply one (spec 0002 §Q5: "otherwise Farcaster injects
+// TestXRequestIDInjected verifies that Zerker injects an X-Request-ID when
+// the caller does not supply one (spec 0002 §Q5: "otherwise Zerker injects
 // one").
 func TestXRequestIDInjected(t *testing.T) {
 	t.Parallel()
@@ -336,14 +336,51 @@ func TestXRequestIDInjected(t *testing.T) {
 	}
 }
 
-// TestXFarcasterHeadersSpoofPrevented verifies that a caller cannot inject
-// X-Farcaster-* headers — they are stripped before forwarding.
-func TestXFarcasterHeadersSpoofPrevented(t *testing.T) {
+// TestXZerkerHeadersSpoofPrevented verifies that a caller cannot inject
+// X-Zerker-* headers — they are stripped before forwarding.
+func TestXZerkerHeadersSpoofPrevented(t *testing.T) {
 	t.Parallel()
 
 	var upstreamAgentID string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		upstreamAgentID = r.Header.Get("X-Farcaster-Agent-ID")
+		upstreamAgentID = r.Header.Get("X-Zerker-Agent-ID")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(upstream.Close)
+
+	store := agent.NewMemoryStore()
+	agentID := seedAgent(t, store, upstream.URL, nil)
+	f := proxy.New(store, &stubCredSvc{}, noRetryConfig(upstream.Client()), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Zerker-Agent-ID", "agt_spoofed") // caller tries to spoof
+
+	result, err := f.Do(context.Background(), testTenant, agentID, "", req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_ = result.Body.Close()
+
+	// The upstream should see the real agent ID set by the forwarder, not the
+	// spoofed value.
+	if upstreamAgentID == "agt_spoofed" {
+		t.Error("caller-supplied X-Zerker-Agent-ID must be stripped before forwarding")
+	}
+	if upstreamAgentID != agentID {
+		t.Errorf("upstream X-Zerker-Agent-ID = %q, want %q", upstreamAgentID, agentID)
+	}
+}
+
+// TestLegacyXFarcasterHeadersSpoofPrevented verifies that the pre-rename
+// X-Farcaster-* prefix is still stripped. The gateway no longer emits these,
+// so an upstream still keyed to the old contract would otherwise receive a
+// value supplied entirely by the caller.
+func TestLegacyXFarcasterHeadersSpoofPrevented(t *testing.T) {
+	t.Parallel()
+
+	var upstreamLegacyAgentID string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamLegacyAgentID = r.Header.Get("X-Farcaster-Agent-ID")
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(upstream.Close)
@@ -361,13 +398,8 @@ func TestXFarcasterHeadersSpoofPrevented(t *testing.T) {
 	}
 	_ = result.Body.Close()
 
-	// The upstream should see the real agent ID set by the forwarder, not the
-	// spoofed value.
-	if upstreamAgentID == "agt_spoofed" {
-		t.Error("caller-supplied X-Farcaster-Agent-ID must be stripped before forwarding")
-	}
-	if upstreamAgentID != agentID {
-		t.Errorf("upstream X-Farcaster-Agent-ID = %q, want %q", upstreamAgentID, agentID)
+	if upstreamLegacyAgentID != "" {
+		t.Errorf("caller-supplied X-Farcaster-Agent-ID = %q, want it stripped before forwarding", upstreamLegacyAgentID)
 	}
 }
 

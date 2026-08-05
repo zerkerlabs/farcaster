@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 const (

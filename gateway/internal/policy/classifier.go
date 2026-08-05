@@ -5,7 +5,7 @@ import "context"
 // ClassifierHook is a rule's opt-in configuration for the optional semantic
 // rail (spec 0009 Decision 4, ticket T6): delegate this rule's decision to an
 // operator-configured external classifier webhook (e.g. Llama Guard / Lakera /
-// an LLM-judge) instead of a fixed Action. Farcaster bundles no classifier and
+// an LLM-judge) instead of a fixed Action. Zerker bundles no classifier and
 // calls nothing unless a rule sets this.
 type ClassifierHook struct {
 	// URL is the operator-configured classifier endpoint. It is egress the

@@ -1,4 +1,4 @@
-// Package httpapi implements the Farcaster HTTP API surface (spec 0001 and
+// Package httpapi implements the Zerker HTTP API surface (spec 0001 and
 // beyond). Each endpoint lives in its own file; RegisterRoutes is the single
 // place to add new route registrations so future handlers can be added with
 // minimal merge conflict.
@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/policy"
-	"github.com/zerkerlabs/farcaster/gateway/internal/receipt"
-	"github.com/zerkerlabs/farcaster/gateway/internal/settlement"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/policy"
+	"github.com/zerkerlabs/gateway/gateway/internal/receipt"
+	"github.com/zerkerlabs/gateway/gateway/internal/settlement"
 )
 
 // AgentRateLimiter checks per-agent invocation rate limits.
@@ -47,7 +47,7 @@ type CallerRateLimiter interface {
 	Allow(key string) time.Duration
 }
 
-// Handler holds the shared dependencies for all Farcaster HTTP handlers.
+// Handler holds the shared dependencies for all Zerker HTTP handlers.
 type Handler struct {
 	store           agent.AgentStore
 	credSvc         CredentialService

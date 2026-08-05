@@ -8,7 +8,7 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // ethAddressOf derives the Ethereum address (0x + 40 hex) for a secp256k1 key,

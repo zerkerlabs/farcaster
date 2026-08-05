@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory"
-	"github.com/zerkerlabs/farcaster/rooms/internal/memory/memorytest"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory"
+	"github.com/zerkerlabs/gateway/rooms/internal/memory/memorytest"
 )
 
 func TestFake_Contract(t *testing.T) {

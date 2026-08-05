@@ -3,7 +3,7 @@ title: SDKs
 description: Go and TypeScript clients, generated from the shared x402 wire contract.
 ---
 
-Farcaster ships Go and TypeScript SDKs (`sdk/go/`, `sdk/ts/`), generated from
+Zerker ships Go and TypeScript SDKs (`sdk/go/`, `sdk/ts/`), generated from
 the same `x402types` OpenAPI contract the gateway and facilitator speak — so a
 client can never drift from the wire format the servers actually implement.
 

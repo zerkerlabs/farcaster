@@ -3,14 +3,14 @@ title: Postgres
 description: Configuring the gateway's PostgreSQL store — connection, automatic migrations, and the in-memory dev fallback.
 ---
 
-Farcaster persists all durable state — registered agents, encrypted
+Zerker persists all durable state — registered agents, encrypted
 credentials, invocation records, and settlement configuration — in
-**PostgreSQL**. Point the gateway at a database with `FARCASTER_DATABASE_URL`
+**PostgreSQL**. Point the gateway at a database with `ZERKER_DATABASE_URL`
 (a standard pgx/libpq DSN); `DATABASE_URL` is honored as a fallback for
 platforms that inject that name.
 
 ```bash
-FARCASTER_DATABASE_URL=postgres://user:pass@db:5432/farcaster?sslmode=require
+ZERKER_DATABASE_URL=postgres://user:pass@db:5432/zerker?sslmode=require
 ```
 
 The connection is pooled; no separate pool tuning is required to start.
@@ -25,7 +25,7 @@ this means during a rolling deploy.
 
 ## The in-memory fallback (dev only)
 
-If neither `FARCASTER_DATABASE_URL` nor `DATABASE_URL` is set, the gateway
+If neither `ZERKER_DATABASE_URL` nor `DATABASE_URL` is set, the gateway
 falls back to a **non-durable in-memory store** and logs a warning at startup.
 Every registered agent and credential is lost when the process restarts. This
 is intended purely for local development and tests — **never run production

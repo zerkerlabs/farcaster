@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/rooms/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/rooms/internal/auth/authtest"
 )
 
 // TestRoomRoutesRequireValidBearerToken checks every v1 room route against

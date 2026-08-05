@@ -1,8 +1,8 @@
-// Package version exposes build metadata for the Farcaster gateway.
+// Package version exposes build metadata for the Zerker gateway.
 //
 // Values are overridden at build time via -ldflags, e.g.:
 //
-//	go build -ldflags "-X github.com/zerkerlabs/farcaster/gateway/internal/version.Version=v0.1.0"
+//	go build -ldflags "-X github.com/zerkerlabs/gateway/gateway/internal/version.Version=v0.1.0"
 package version
 
 // Version is the semantic version of the build. "dev" for local builds.

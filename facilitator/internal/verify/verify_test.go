@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // refTime sits inside [validAfter, validBefore) of validSettleRequest.

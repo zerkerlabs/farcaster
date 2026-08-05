@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zerkerlabs/farcaster/gateway/internal/agent"
-	"github.com/zerkerlabs/farcaster/gateway/internal/auth/authtest"
-	"github.com/zerkerlabs/farcaster/gateway/internal/invocation"
-	"github.com/zerkerlabs/farcaster/gateway/internal/proxy"
-	"github.com/zerkerlabs/farcaster/x402types"
+	"github.com/zerkerlabs/gateway/gateway/internal/agent"
+	"github.com/zerkerlabs/gateway/gateway/internal/auth/authtest"
+	"github.com/zerkerlabs/gateway/gateway/internal/invocation"
+	"github.com/zerkerlabs/gateway/gateway/internal/proxy"
+	"github.com/zerkerlabs/gateway/x402types"
 )
 
 // These are white-box tests (package httpapi): PaymentVerifier's method
@@ -280,8 +280,8 @@ func TestHandleTransact_X402_ForwardsWithInjectedVerifier(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 }
 
@@ -303,7 +303,7 @@ func TestHandleStream_X402_ForwardsWithInjectedVerifier(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (forwarded with permissive verifier); body = %s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("X-Farcaster-Invocation-ID"); got == "" {
-		t.Error("X-Farcaster-Invocation-ID missing on forwarded call")
+	if got := rec.Header().Get("X-Zerker-Invocation-ID"); got == "" {
+		t.Error("X-Zerker-Invocation-ID missing on forwarded call")
 	}
 }
