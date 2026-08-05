@@ -5,7 +5,7 @@ description: OAuth 2.0 / OIDC identity, and how every record is scoped to a tena
 
 ## Authentication: OAuth 2.0 / OIDC
 
-Every request that touches agent data carries a bearer access token. Zerker
+Every request that touches agent data carries a bearer access token. Zerker Gateway
 validates it against your configured OIDC issuer and derives two identities
 from its claims:
 
@@ -34,7 +34,7 @@ or even error messages that reference resource IDs.
 
 ## One deployment, many tenants — or just you
 
-The default deployment is **pooled multi-tenant**: one Zerker instance can
+The default deployment is **pooled multi-tenant**: one the gateway instance can
 serve many independent client organizations, each fully isolated by
 `tenant_id`. Nothing about self-hosting changes this model — if you run your
 own instance for your own organization, you are simply the only tenant on it,

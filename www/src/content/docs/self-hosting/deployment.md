@@ -1,9 +1,9 @@
 ---
 title: Deployment
-description: Deployment topologies for the single-binary Zerker gateway — containers, health probes, scaling, and graceful shutdown.
+description: Deployment topologies for the single-binary Zerker Gateway — containers, health probes, scaling, and graceful shutdown.
 ---
 
-Zerker ships as a **single, statically-linked Go binary**. There is no
+Zerker Gateway ships as a **single, statically-linked Go binary**. There is no
 sidecar, no runtime, and no required external service beyond the process
 itself — [Postgres](/self-hosting/postgres/) is optional but recommended
 for any durable deployment. The binary reads its entire configuration from the

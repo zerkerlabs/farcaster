@@ -9,7 +9,7 @@ gate, and per-tenant credential isolation. All of it is OSS and self-hostable
 — see [OSS vs Commercial at a glance](/oss-vs-commercial/).
 
 - **[Agent Catalog](/gateway/catalog/)** — register, list, and manage the
-  agents Zerker fronts.
+  agents Zerker Gateway fronts.
 - **[Routing & proxy](/gateway/proxy/)** — transactional and streaming
   invocation, verbatim body forwarding, credential injection.
 - **[MCP-native transport](/gateway/mcp/)** — register an MCP server as a

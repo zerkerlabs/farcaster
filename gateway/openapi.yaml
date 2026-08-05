@@ -3,7 +3,7 @@ info:
   title: Zerker Gateway API
   version: "1.0.0"
   description: >-
-    The Zerker gateway's `/v1` REST surface: the Agent Catalog, credential
+    Zerker Gateway's `/v1` REST surface: the Agent Catalog, credential
     vault, transactional/streaming proxy, invocation and analytics
     observability, settlement configuration, and per-tenant policy authoring.
     This document describes
@@ -16,7 +16,7 @@ info:
     Two operational routes (`/healthz`, `/version`) sit outside `/v1` and
     require no authentication (AGENTS.md invariant #1).
   contact:
-    name: Zerker
+    name: Zerker Labs
     url: https://github.com/zerkerlabs/gateway
 externalDocs:
   description: docs/specs/ (product specs 0001-0006 this surface implements)

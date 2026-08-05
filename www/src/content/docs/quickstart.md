@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: First agent, first proxied call, first gated tool — the three steps to a working Zerker gateway.
+description: First agent, first proxied call, first gated tool — the three steps to a working Zerker Gateway.
 ---
 
 This walks through the shortest path from a running gateway to a paid,
@@ -17,7 +17,7 @@ TOKEN=$(cat /tmp/zerker-dev-token)
 
 ## 1. Register your first agent
 
-An agent is a catalog entry: a name and an `upstream_url` Zerker will proxy
+An agent is a catalog entry: a name and an `upstream_url` Zerker Gateway will proxy
 calls to.
 
 ```bash
@@ -36,14 +36,14 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
      localhost:8080/v1/proxy/{id}
 ```
 
-Zerker forwards the call to `upstream_url`, records the invocation
+The gateway forwards the call to `upstream_url`, records the invocation
 (latency, status, body if capture is enabled), and returns the upstream's
 response. `POST /v1/proxy/{id}/stream` does the same for streaming calls;
 `GET /v1/invocations` lists what was captured.
 
 ## 3. Gate a paid tool
 
-Set a `price` on the agent to require a stablecoin payment before Zerker
+Set a `price` on the agent to require a stablecoin payment before the gateway
 will proxy a call to it. Pricing is USDC on Base:
 
 ```bash
@@ -62,7 +62,7 @@ curl -i -H "Authorization: Bearer $TOKEN" -X POST localhost:8080/v1/proxy/{id}
 
 A caller that presents a valid, signed x402 payment authorization in the
 `X-PAYMENT` header — one satisfying the `accepts` terms in the 402 body — is
-verified and forwarded normally. Zerker never holds the caller's or the
+verified and forwarded normally. The gateway never holds the caller's or the
 operator's private key; it only verifies the signed authorization. See
 [Sovereignty & no-custody](/concepts/sovereignty/) for why that matters,
 and [OSS vs Commercial at a glance](/oss-vs-commercial/) for what happens

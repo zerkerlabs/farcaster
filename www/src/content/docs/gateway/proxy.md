@@ -1,17 +1,17 @@
 ---
 title: Routing & proxy
-description: How Zerker forwards calls to a registered agent's upstream — transactional and streaming, verbatim body, header-carried metadata.
+description: How Zerker Gateway forwards calls to a registered agent's upstream — transactional and streaming, verbatim body, header-carried metadata.
 ---
 
 Once an agent has an `upstream_url` (see [Agent Catalog](/gateway/catalog/)),
-Zerker sits in its traffic path. A caller invokes the agent through
-Zerker instead of calling the upstream directly, and Zerker resolves the
+Zerker Gateway sits in its traffic path. A caller invokes the agent through
+The gateway instead of calling the upstream directly, and the gateway resolves the
 upstream, injects the agent's credential, forwards the call, and records what
 happened.
 
 ## Two invocation modes, one addressing scheme
 
-Zerker offers two endpoints for the same agent, and the caller picks by use
+The gateway offers two endpoints for the same agent, and the caller picks by use
 case:
 
 | Mode | Endpoint | Shape |
@@ -58,12 +58,12 @@ upstream call is made.
 
 ## Body verbatim, metadata in headers
 
-Zerker forwards the caller's request body **unmodified** to the upstream —
-there is no Zerker envelope to unwrap. Correlation and control metadata
+The gateway forwards the caller's request body **unmodified** to the upstream —
+there is no the gateway envelope to unwrap. Correlation and control metadata
 rides in `X-Zerker-*` response headers and a small set of request headers
 instead:
 
-- **`X-Request-ID`** — every proxied request carries one; Zerker honors the
+- **`X-Request-ID`** — every proxied request carries one; the gateway honors the
   caller's if present, otherwise injects one.
 - **`X-Zerker-Model`** — optional, caller-supplied, recorded on the
   invocation for observability (capped at 256 bytes; see
@@ -77,7 +77,7 @@ endpoint has no cap.
 
 ## Credentials, retries, and failure modes
 
-Zerker resolves the agent's `credential_ref` and injects it into the
+The gateway resolves the agent's `credential_ref` and injects it into the
 upstream call at invocation time — never from the caller's request (see
 [Agent Catalog](/gateway/catalog/#credentials-are-a-separate-resource)).
 Transient upstream failures are retried, and a circuit breaker opens on a

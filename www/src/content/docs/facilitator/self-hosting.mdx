@@ -1,6 +1,6 @@
 ---
 title: Self-hosting vs managed
-description: Run your own facilitator, or point at Zerker's — the same binary, the same wire contract, a different operator.
+description: Run your own facilitator, or point at Zerker Gateway's — the same binary, the same wire contract, a different operator.
 ---
 
 import Commercial from '../../../components/Commercial.astro';
@@ -13,7 +13,7 @@ curl -X PATCH -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/js
      localhost:8080/v1/settlement/config
 ```
 
-Whether `facilitator_url` points at infrastructure you run or at Zerker's is
+Whether `facilitator_url` points at infrastructure you run or at Zerker Gateway's is
 the entire self-host-vs-managed decision — the gateway's settlement client
 doesn't know or care which. Both options run the identical facilitator
 binary and speak the identical `x402types` wire contract
@@ -23,7 +23,7 @@ binary and speak the identical `x402types` wire contract
 ## Self-hosting a facilitator (OSS)
 
 Running your own facilitator means **you** are the operator that holds a gas
-key, and it never involves Zerker at all — zero external dependency, matching
+key, and it never involves the gateway at all — zero external dependency, matching
 the sovereign/self-host pitch. You'll need to provide:
 
 - **mTLS material** — a server certificate/key for the facilitator and a
@@ -48,13 +48,13 @@ the sovereign/self-host pitch. You'll need to provide:
   provisioned manually for now (there's no self-serve onboarding yet); an
   unrecognized certificate gets `403`.
 
-Nothing here is metered or gated by Zerker — you own the gas wallet, you pay
-the gas, and collections work with zero calls to Zerker's infrastructure.
+Nothing here is metered or gated by the gateway — you own the gas wallet, you pay
+the gas, and collections work with zero calls to the gateway's infrastructure.
 
 ## The managed facilitator — <Commercial />
 
-Pointing `facilitator_url` at `https://settle.zerker.dev` — Zerker's hosted
-facilitator — means Zerker operates the gas wallet, the signer, the chain
+Pointing `facilitator_url` at `https://settle.zerker.dev` — the gateway's hosted
+facilitator — means the gateway operates the gas wallet, the signer, the chain
 RPC, and the uptime, so collections "just work" without you running any
 crypto infrastructure. (The signer is AWS KMS's target backend — see
 [Signer backends](/facilitator/signers/) for current status.) This is the **commercial** side of the open-core

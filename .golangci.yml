@@ -1,4 +1,4 @@
-# golangci-lint v2 configuration for Zerker.
+# golangci-lint v2 configuration for Zerker Gateway.
 # Docs: https://golangci-lint.run/usage/configuration/
 version: "2"
 

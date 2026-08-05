@@ -1,8 +1,8 @@
-# Zerker
+# Zerker Gateway
 
 > An open gateway to manage, analyze, and productize agents and agentic workflows.
 
-Zerker is the control plane in front of agent traffic — routing, policy,
+Zerker Gateway is the control plane in front of agent traffic — routing, policy,
 observability, and payment metering. It is a single Go binary you can self-host:
 own your gateway, own your keys, no custody handed to anyone.
 

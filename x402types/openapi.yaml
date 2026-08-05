@@ -3,7 +3,7 @@ info:
   title: x402 wire contract
   version: "1.0.0"
   description: >-
-    Canonical x402 wire types shared by the Zerker gateway (verify + settle
+    Canonical x402 wire types shared by Zerker Gateway (verify + settle
     client) and the facilitator (settle server), and the source of truth for
     generated SDKs. `exact`-scheme payloads carry an EIP-3009
     transferWithAuthorization. All 256-bit amounts and validity bounds are

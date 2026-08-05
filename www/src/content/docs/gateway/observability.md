@@ -52,7 +52,7 @@ worth knowing about:
   `credential_error`, `cancelled`, `internal`. `null` on success.
 - **`model`** — caller-supplied only, via the `X-Zerker-Model` request
   header (see [Routing & proxy](/gateway/proxy/#body-verbatim-metadata-in-headers)).
-  Zerker proxies arbitrary upstream agents, not a known LLM wire format, so
+  Zerker Gateway proxies arbitrary upstream agents, not a known LLM wire format, so
   it does not parse bodies to infer a model. MCP is the one exception — see
   [MCP-native transport](/gateway/mcp/).
 

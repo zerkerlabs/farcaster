@@ -1,4 +1,4 @@
-# Zerker website (www/) — build & quality harness.
+# Zerker Gateway website (www/) — build & quality harness.
 #
 # `make check` is THE contract for this module: lint (astro check) + build +
 # broken-internal-link check. Mirrors the per-module pattern in

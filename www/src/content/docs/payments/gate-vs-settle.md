@@ -3,7 +3,7 @@ title: Gate vs settle
 description: Two distinct steps behind one x402 flow — verifying a payment authorization, and actually collecting it.
 ---
 
-x402 on Zerker is two steps, shipped as two surfaces, with an open-core
+x402 on Zerker Gateway is two steps, shipped as two surfaces, with an open-core
 line drawn exactly between them. Every priced route goes through the
 **gate**; only a route on a tenant with a facilitator configured also goes
 through **settlement**.
@@ -26,7 +26,7 @@ signing key:
 Nothing about this step touches a chain or a private key — it is pure
 signature and parameter verification. It is why the gate is OSS: it's the
 primitive that makes "self-host *and* monetize" credible on its own, with
-zero dependency on Zerker's infrastructure. See
+zero dependency on the gateway's infrastructure. See
 [Sovereignty & no-custody](/concepts/sovereignty/).
 
 A route with **no facilitator configured for its tenant** stops here. The
@@ -88,11 +88,11 @@ facilitator, or it goes through the full verify → settle → forward sequence.
 ## Why the line sits here
 
 Verification requires no outbound call and no key, so it stays in the free,
-self-hostable core — it's the wedge that makes Zerker's monetization story
-credible without asking anyone to trust Zerker with anything. Collection
+self-hostable core — it's the wedge that makes the gateway's monetization story
+credible without asking anyone to trust the gateway with anything. Collection
 requires a party willing to hold a gas key and submit transactions, which is
 a materially different trust and operational commitment — that's the
-facilitator, and pointing at Zerker's managed one (rather than running your
+facilitator, and pointing at the gateway's managed one (rather than running your
 own) is the commercial product. See
 [The open-core boundary](/concepts/open-core-boundary/) for the full
 reasoning.

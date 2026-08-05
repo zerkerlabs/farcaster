@@ -1,4 +1,4 @@
-# Zerker monorepo — top-level build harness (ADR-0010).
+# Zerker Gateway monorepo — top-level build harness (ADR-0010).
 #
 # The repo is a Go workspace (go.work) of independent modules. `make check` fans
 # the per-module gate out over every module; CI runs each module's `check` as its

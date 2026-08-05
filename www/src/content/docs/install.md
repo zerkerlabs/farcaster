@@ -1,9 +1,9 @@
 ---
 title: Install
-description: Run the Zerker gateway locally, or point it at your own identity provider in production.
+description: Run Zerker Gateway locally, or point it at your own identity provider in production.
 ---
 
-Zerker ships as a single Go binary. There is no separate database, cache,
+Zerker Gateway ships as a single Go binary. There is no separate database, cache,
 or sidecar required to start it — Postgres is optional (see below).
 
 ## Requirement: OIDC configuration

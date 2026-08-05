@@ -1,23 +1,23 @@
 ---
 title: Sovereignty & no-custody
-description: Why Zerker never holds a private key, and why that's the point for self-hosters.
+description: Why Zerker Gateway never holds a private key, and why that's the point for self-hosters.
 ---
 
-Zerker's positioning is **sovereign, single-binary, no-custody**. Each word
+Zerker Gateway's positioning is **sovereign, single-binary, no-custody**. Each word
 is a specific, checkable claim, not marketing:
 
 - **Sovereign.** The gateway is a single Go binary with no required external
   service beyond an OIDC issuer (and, optionally, Postgres). You can run it
   on-prem, in your own VPC, or fully air-gapped. Nothing about the OSS product
-  requires calling out to Zerker's infrastructure.
+  requires calling out to the gateway's infrastructure.
 - **Single binary.** No JVM, no Python runtime, no sidecar mesh to operate.
   One process to deploy, upgrade, and reason about.
 - **No-custody.** This is the sharpest edge. When a caller pays for a gated
-  tool call, Zerker verifies the payment authorization's signature and
+  tool call, the gateway verifies the payment authorization's signature and
   terms — it does **not** hold, forward, or take temporary control of the
   caller's or the operator's private key at any point. Compare this to a
   facilitator-custody model, where a third party signs or submits transactions
-  on your behalf: Zerker's gateway simply never has a key to lose, leak, or
+  on your behalf: the gateway's gateway simply never has a key to lose, leak, or
   be compelled to misuse.
 
 ## What this buys a self-hoster

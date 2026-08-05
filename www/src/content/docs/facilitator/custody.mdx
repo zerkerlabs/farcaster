@@ -1,12 +1,12 @@
 ---
 title: Custody posture
-description: What the facilitator holds, what it never touches, and why that's true whether you self-host it or use Zerker's managed one.
+description: What the facilitator holds, what it never touches, and why that's true whether you self-host it or use Zerker Gateway's managed one.
 ---
 
 import Commercial from '../../../components/Commercial.astro';
 
-The facilitator is the **one place in the entire Zerker system that holds
-a signing key.** Everywhere else — the gateway, the SDKs, Zerker's control
+The facilitator is the **one place in the entire Zerker Gateway system that holds
+a signing key.** Everywhere else — the gateway, the SDKs, the gateway's control
 plane — is deliberately keyless. Understanding exactly what that one key is
 (and isn't) is the whole custody story.
 
@@ -66,19 +66,19 @@ mistake or is actively hostile.
 ## Self-hosted vs managed — same posture, different operator
 
 This custody posture is **identical** whether you run the facilitator
-yourself or point at Zerker's managed one — the code is the same binary
+yourself or point at the gateway's managed one — the code is the same binary
 either way (see [Self-hosting vs managed](/facilitator/self-hosting/)).
 What differs is *who* operates the gas wallet and *where* the key material
 lives:
 
 | | Self-hosted (OSS) | Managed (<Commercial />) |
 |---|---|---|
-| Who holds the gas key | You | Zerker |
+| Who holds the gas key | You | the gateway |
 | Signer backend | Local encrypted keystore (bring-your-own KMS/HSM designed for, not yet wired) | Local encrypted keystore today; AWS KMS (HSM-backed) is the target — see [Signer backends](/facilitator/signers/) |
-| Who pays gas | You | Zerker |
+| Who pays gas | You | the gateway |
 | Custody of payer/operator funds | Neither — payer-signed transfer moves funds directly | Neither — same guarantee |
 
-Neither deployment mode ever gives Zerker (or you, in the self-hosted case)
+Neither deployment mode ever gives the gateway (or you, in the self-hosted case)
 custody of anyone's funds — only of the narrow, bounded gas wallet that pays
 for submission. That is the guarantee the sovereign/no-custody positioning
 rests on, and it holds regardless of which tier you're on.
