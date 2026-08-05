@@ -1,6 +1,6 @@
 // Command zerker-gateway is the entrypoint for the Zerker gateway.
 //
-// Zerker is Zerker's gateway to manage, analyze, and productize agents and
+// Zerker is the gateway to manage, analyze, and productize agents and
 // agentic workflows. This binary serves operational endpoints and the Agent
 // Catalog surface (spec 0001); further product surfaces land as they are
 // specced under docs/specs.
