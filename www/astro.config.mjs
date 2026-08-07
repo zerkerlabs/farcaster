@@ -19,6 +19,19 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/zerkerlabs/gateway' },
       ],
+      // Vercel Web Analytics and Speed Insights, matching zerker.ai so both
+      // halves of the web presence report into one dashboard. Vercel serves
+      // both scripts — and receives their beacons — on this origin, so there is
+      // no package to install and nothing cross-origin here. They exist only
+      // once the two features are enabled for this project in the dashboard;
+      // until then the routes 404 and the docs are simply unmeasured. Nothing
+      // in this repo can tell you that, which is worth remembering if the
+      // numbers stay at zero. The paths are 404 locally too, which is why
+      // `npm run check-links` skips them.
+      head: [
+        { tag: 'script', attrs: { src: '/_vercel/insights/script.js', defer: true } },
+        { tag: 'script', attrs: { src: '/_vercel/speed-insights/script.js', defer: true } },
+      ],
       // The x402 wire-contract API reference is rendered from the canonical
       // x402types/openapi.yaml — the same schema the Go types and the TS SDK
       // generate from — so the docs are a third consumer with zero
