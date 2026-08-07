@@ -12,7 +12,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "lint": "astro check",
-    "check-links": "linkinator ./dist --recurse --silent --skip \"^https?://(?!localhost)\"",
+    "check-links": "linkinator ./dist --recurse --silent --skip \"^https?://(?!localhost)\" --skip \"/_vercel/\"",
     "check": "npm run lint && npm run check-vercel && npm run build && npm run check-links",
     "check-vercel": "node scripts/check-vercel-json.mjs"
   },
